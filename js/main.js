@@ -61,6 +61,7 @@ class HospitalApp {
         this.patientRecord = null;
         this.currentView = 'login';
         this.currentAppointmentId = null;
+        this.recoveryUser = null; // Para almacenar usuario temporal durante recuperación
     }
 
     async init() {
@@ -269,56 +270,108 @@ class HospitalApp {
     }
 
     setupNavigation() {
+        // Limpiar listeners existentes para evitar duplicados
+        const oldMenuToggle = document.getElementById('menu-toggle');
+        if (oldMenuToggle && oldMenuToggle._listener) {
+            oldMenuToggle.removeEventListener('click', oldMenuToggle._listener);
+        }
+        
+        const oldNotifBtn = document.getElementById('notif-btn');
+        if (oldNotifBtn && oldNotifBtn._listener) {
+            oldNotifBtn.removeEventListener('click', oldNotifBtn._listener);
+        }
+
+        // Configurar navegación por bottom-nav
         document.querySelectorAll('.nav-item').forEach(item => {
-            item.onclick = () => {
+            // Remover listener anterior si existe
+            if (item._listener) {
+                item.removeEventListener('click', item._listener);
+            }
+            const handler = () => {
                 const view = item.dataset.view;
                 if (view) this.navigate(view);
             };
+            item.addEventListener('click', handler);
+            item._listener = handler;
         });
 
+        // Configurar navegación por sidebar
         document.querySelectorAll('.sidebar-item[data-view]').forEach(item => {
-            item.onclick = (e) => {
+            if (item._listener) {
+                item.removeEventListener('click', item._listener);
+            }
+            const handler = (e) => {
                 e.preventDefault();
                 const view = item.dataset.view;
                 if (view) this.navigate(view);
-                document.getElementById('sidebar')?.classList.remove('active');
-                document.getElementById('overlay')?.classList.remove('active');
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('overlay');
+                if (sidebar) sidebar.classList.remove('active');
+                if (overlay) overlay.classList.remove('active');
             };
+            item.addEventListener('click', handler);
+            item._listener = handler;
         });
 
-        document.getElementById('notif-btn')?.addEventListener('click', () => {
-            this.navigate('messages');
-        });
+        // Botón de notificaciones
+        const notifBtn = document.getElementById('notif-btn');
+        if (notifBtn) {
+            const notifHandler = () => {
+                this.navigate('messages');
+            };
+            notifBtn.addEventListener('click', notifHandler);
+            notifBtn._listener = notifHandler;
+        }
 
+        // Botón de menú (hamburguesa)
         const menuToggle = document.getElementById('menu-toggle');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('overlay');
         
         if (menuToggle) {
-            menuToggle.onclick = () => {
-                sidebar?.classList.toggle('active');
-                overlay?.classList.toggle('active');
+            const menuHandler = () => {
+                if (sidebar) sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active');
             };
+            menuToggle.addEventListener('click', menuHandler);
+            menuToggle._listener = menuHandler;
         }
         
         if (overlay) {
-            overlay.onclick = () => {
-                sidebar?.classList.remove('active');
+            const overlayHandler = () => {
+                if (sidebar) sidebar.classList.remove('active');
                 overlay.classList.remove('active');
             };
+            overlay.addEventListener('click', overlayHandler);
+            overlay._listener = overlayHandler;
         }
 
+        // Links de "Ver todas" en las vistas
         document.querySelectorAll('[data-view-target]').forEach(el => {
-            el.addEventListener('click', (e) => {
+            if (el._listener) {
+                el.removeEventListener('click', el._listener);
+            }
+            const handler = (e) => {
                 e.preventDefault();
                 this.navigate(el.dataset.viewTarget);
-            });
+            };
+            el.addEventListener('click', handler);
+            el._listener = handler;
         });
 
-        document.getElementById('logout-btn')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.logout();
-        });
+        // Botón de logout
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            if (logoutBtn._listener) {
+                logoutBtn.removeEventListener('click', logoutBtn._listener);
+            }
+            const logoutHandler = (e) => {
+                e.preventDefault();
+                this.logout();
+            };
+            logoutBtn.addEventListener('click', logoutHandler);
+            logoutBtn._listener = logoutHandler;
+        }
         
         this.setupBackButton();
     }
@@ -377,6 +430,8 @@ class HospitalApp {
         this.renderHeader();
         this.updateStats();
         this.renderHome();
+        // Asegurar que el badge de notificaciones se actualice
+        this.updateNotificationBadge();
     }
     
     renderHeader() {
@@ -439,6 +494,7 @@ class HospitalApp {
             } else {
                 badge.classList.remove('active');
                 badge.style.display = 'none';
+                badge.textContent = '';
             }
         }
     }
@@ -463,6 +519,13 @@ class HospitalApp {
         const all = this.store.get('appointments');
         const mine = all.filter(a => a.patientId === this.patientRecord.id);
         this.renderHomeView(mine);
+        // Forzar que la vista activa sea home en la navegación inferior
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.view === 'home');
+        });
+        document.querySelectorAll('.sidebar-item[data-view]').forEach(item => {
+            item.classList.toggle('active', item.dataset.view === 'home');
+        });
     }
     
     renderHomeView(appointments) {
@@ -497,15 +560,20 @@ class HospitalApp {
                     </button>
                 </div>
             `;
-            document.getElementById('next-apt-card')?.addEventListener('click', () => {
-                this.showAppointmentDetail(next.id);
-            });
+            const nextCard = document.getElementById('next-apt-card');
+            if (nextCard && !nextCard._listener) {
+                const handler = () => {
+                    this.showAppointmentDetail(next.id);
+                };
+                nextCard.addEventListener('click', handler);
+                nextCard._listener = handler;
+            }
         } else {
             nextSlot.innerHTML = `
                 <div class="empty-state" style="background:#fff;border-radius:16px;padding:24px;text-align:center;">
                     <i class="fa-regular fa-calendar-check" style="font-size:2rem;opacity:0.3;margin-bottom:12px;display:block;"></i>
                     <p style="margin:0;color:var(--neutralSecondary);">No hay citas programadas para hoy</p>
-                    <button onclick="app.navigate('new-appointment')" class="btn-primary" style="margin-top:12px;background:var(--themePrimary);padding:8px 16px;border-radius:20px;font-size:0.75rem;">
+                    <button onclick="window._patientApp?.navigate('new-appointment')" class="btn-primary" style="margin-top:12px;background:var(--themePrimary);padding:8px 16px;border-radius:20px;font-size:0.75rem;">
                         <i class="fa-solid fa-plus"></i> Agendar cita
                     </button>
                 </div>
@@ -531,7 +599,9 @@ class HospitalApp {
                 const item = document.createElement('div');
                 item.className = 'agenda-item';
                 item.style.cursor = 'pointer';
-                item.onclick = () => this.showAppointmentDetail(apt.id);
+                const handler = () => this.showAppointmentDetail(apt.id);
+                item.addEventListener('click', handler);
+                item._listener = handler;
                 item.innerHTML = `
                     <div class="time-block">
                         <span class="time">${date}</span>
@@ -550,7 +620,7 @@ class HospitalApp {
         }
     }
 
-    // ── LOGIN CORREGIDO ───────────────────────────────────────────────────────
+    // ── LOGIN CON MODAL DE RECUPERACIÓN MEJORADO ───────────────────────────────────────────────────────
     renderLogin() {
         // Limpiar cualquier modal o elemento flotante que pueda quedar
         document.querySelectorAll('.hospital-modal-overlay, .modal-overlay, .selection-sheet-overlay, #apt-detail-modal')
@@ -584,6 +654,33 @@ class HospitalApp {
                 const eyeOffSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
                 const eyeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
                 eyeBtn.innerHTML = isPassword ? eyeOffSVG : eyeSVG;
+            };
+        }
+
+        // Configurar el modal de recuperación
+        const recoverLink = document.getElementById('recover-link');
+        const modalOverlay = document.getElementById('recover-modal-overlay');
+        const modalClose = document.getElementById('recover-modal-close');
+        const modalBody = document.getElementById('recover-modal-body');
+
+        // Íconos SVG para el modal
+        const icons = {
+            mail: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+            shield: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+            key: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+            check: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+        };
+
+        if (recoverLink && modalOverlay) {
+            recoverLink.onclick = (e) => {
+                e.preventDefault();
+                modalOverlay.style.display = 'flex';
+                this.renderRecoverStep('email', modalBody, icons);
+            };
+
+            modalClose.onclick = () => {
+                modalOverlay.style.display = 'none';
+                this.recoveryUser = null;
             };
         }
 
@@ -687,39 +784,201 @@ class HospitalApp {
                 }
             };
         }
-        
-        const recoverLink = document.getElementById('recover-link');
-        if (recoverLink) {
-            recoverLink.onclick = (e) => {
-                e.preventDefault();
-                this.showRecoveryModal();
-            };
-        }
     }
-    
-    async showRecoveryModal() {
-        const email = await window.promptDialog('Ingrese su correo electrónico registrado para recuperar su contraseña');
-        if (email) {
-            const patients = this.store.get('patients');
-            const patient = patients.find(p => p.email === email);
-            if (patient) {
-                // Buscar contraseña en pacientes o en users
-                let password = patient.password;
-                if (!password) {
-                    const users = this.store.get('users');
-                    const userRecord = users.find(u => u.patientId === patient.id);
-                    if (userRecord) password = userRecord.password;
+
+    // Método de recuperación de contraseña con diseño mejorado
+    renderRecoverStep(step, bodyEl, icons) {
+        if (!bodyEl) return;
+
+        if (step === 'email') {
+            bodyEl.innerHTML = `
+              <div class="auth-rec" style="padding: 0.5rem 0;">
+                <div class="auth-rec-head">
+                  <span class="auth-rec-ico" style="background: var(--themePrimary);">
+                    ${icons.mail}
+                  </span>
+                  <h3 style="color: var(--themeDark); font-size: 1.3rem; margin-top: 1rem;">Recuperar Acceso</h3>
+                  <p style="color: var(--neutralSecondary); font-size: 0.85rem;">Ingrese su correo electrónico para buscar su cuenta</p>
+                </div>
+                <form id="rec-email-form" style="margin-top: 1.5rem;">
+                  <div class="login-field">
+                    <label class="login-label" for="rec-email" style="font-weight: 600;">Correo electrónico</label>
+                    <input class="login-input" type="email" id="rec-email" placeholder="ejemplo@hospital.com" required 
+                           style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;" />
+                  </div>
+                  <div id="rec-error" class="auth-msg auth-err" style="display:none; margin-top: 12px;"></div>
+                  <button type="submit" class="login-submit-btn" style="width:100%; margin-top: 24px; background: var(--themePrimary); border-radius: 12px; padding: 14px;">
+                    BUSCAR CUENTA
+                  </button>
+                </form>
+              </div>`;
+            
+            document.getElementById('rec-email-form').onsubmit = (e) => {
+                e.preventDefault();
+                const mail = document.getElementById('rec-email').value;
+                const patients = this.store.get('patients');
+                const users = this.store.get('users');
+                const matchedPatient = patients.find(p => p.email === mail);
+                const matchedUser = users.find(u => u.email === mail);
+                const matched = matchedPatient || matchedUser;
+                
+                if (matched) {
+                    this.recoveryUser = matched;
+                    this.renderRecoverStep('verify', bodyEl, icons);
+                } else {
+                    const err = document.getElementById('rec-error');
+                    err.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> No se encontró ninguna cuenta con ese correo.';
+                    err.style.display = 'flex';
                 }
-                await UI.hospitalAlert(`Su contraseña es: ${password || 'No registrada, contacte al administrador'}`, 'success');
-            } else {
-                await UI.hospitalAlert('No se encontró un paciente con ese correo electrónico.', 'error');
-            }
+            };
+            
+        } else if (step === 'verify') {
+            bodyEl.innerHTML = `
+              <div class="auth-rec" style="padding: 0.5rem 0;">
+                <div class="auth-rec-head">
+                  <span class="auth-rec-ico" style="background: var(--themeSecondary);">
+                    ${icons.shield}
+                  </span>
+                  <h3 style="color: var(--themeDark); font-size: 1.3rem; margin-top: 1rem;">Verificación de Identidad</h3>
+                  <p style="color: var(--neutralSecondary); font-size: 0.85rem;">
+                    Cuenta encontrada: <strong style="color: var(--themePrimary);">${this.recoveryUser.name || 'Usuario'}</strong><br>
+                    Para verificar su identidad, ingrese su nombre de usuario
+                  </p>
+                </div>
+                <form id="rec-verify-form" style="margin-top: 1.5rem;">
+                  <div class="login-field">
+                    <label class="login-label" for="verify-user">Nombre de usuario</label>
+                    <input class="login-input" type="text" id="verify-user" placeholder="Ingrese su nombre de usuario" required 
+                           style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;" />
+                  </div>
+                  <div id="verify-error" class="auth-msg auth-err" style="display:none; margin-top: 12px;"></div>
+                  <button type="submit" class="login-submit-btn" style="width:100%; margin-top: 24px; background: var(--themePrimary); border-radius: 12px; padding: 14px;">
+                    VERIFICAR IDENTIDAD
+                  </button>
+                </form>
+              </div>`;
+              
+            document.getElementById('rec-verify-form').onsubmit = (e) => {
+                e.preventDefault();
+                const userIn = document.getElementById('verify-user').value;
+                if (userIn === this.recoveryUser.username || userIn === this.recoveryUser.id) {
+                    this.renderRecoverStep('reset', bodyEl, icons);
+                } else {
+                    const err = document.getElementById('verify-error');
+                    err.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> El nombre de usuario no coincide.';
+                    err.style.display = 'flex';
+                }
+            };
+            
+        } else if (step === 'reset') {
+            bodyEl.innerHTML = `
+              <div class="auth-rec" style="padding: 0.5rem 0;">
+                <div class="auth-rec-head">
+                  <span class="auth-rec-ico" style="background: var(--orange);">
+                    ${icons.key}
+                  </span>
+                  <h3 style="color: var(--themeDark); font-size: 1.3rem; margin-top: 1rem;">Nueva Contraseña</h3>
+                  <p style="color: var(--neutralSecondary); font-size: 0.85rem;">
+                    Establezca una nueva contraseña para <strong style="color: var(--themePrimary);">${this.recoveryUser.name || 'Usuario'}</strong>
+                  </p>
+                </div>
+                <form id="rec-reset-form" style="margin-top: 1.5rem;">
+                  <div class="login-field">
+                    <label class="login-label" for="new-pass">Nueva contraseña</label>
+                    <div class="auth-pw-wrap">
+                      <input class="login-input" type="password" id="new-pass" placeholder="Mínimo 6 caracteres" required minlength="6" 
+                             style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; padding-right: 2.5rem;" />
+                      <button type="button" class="auth-eye" style="right: 12px;" onclick="window.togglePassword('new-pass')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="login-field" style="margin-top: 16px;">
+                    <label class="login-label" for="confirm-pass">Confirmar contraseña</label>
+                    <div class="auth-pw-wrap">
+                      <input class="login-input" type="password" id="confirm-pass" placeholder="Repita la contraseña" required minlength="6" 
+                             style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; padding-right: 2.5rem;" />
+                      <button type="button" class="auth-eye" style="right: 12px;" onclick="window.togglePassword('confirm-pass')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div id="reset-error" class="auth-msg auth-err" style="display:none; margin-top: 12px;"></div>
+                  <button type="submit" class="login-submit-btn" style="width:100%; margin-top: 24px; background: var(--themePrimary); border-radius: 12px; padding: 14px;">
+                    CAMBIAR CONTRASEÑA
+                  </button>
+                </form>
+              </div>`;
+              
+            // Agregar función global para toggle password
+            window.togglePassword = function(inputId) {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    const type = input.type === 'password' ? 'text' : 'password';
+                    input.type = type;
+                }
+            };
+            
+            document.getElementById('rec-reset-form').onsubmit = (e) => {
+                e.preventDefault();
+                const v1 = document.getElementById('new-pass').value;
+                const v2 = document.getElementById('confirm-pass').value;
+                const err = document.getElementById('reset-error');
+                if (v1 !== v2) {
+                    err.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Las contraseñas no coinciden.';
+                    err.style.display = 'flex';
+                } else if (v1.length < 6) {
+                    err.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> La contraseña debe tener al menos 6 caracteres.';
+                    err.style.display = 'flex';
+                } else {
+                    // Actualizar contraseña en el store
+                    if (this.recoveryUser.id) {
+                        // Es un paciente
+                        this.store.update('patients', this.recoveryUser.id, { password: v1 });
+                    } else {
+                        // Es un usuario
+                        this.store.update('users', this.recoveryUser.id, { password: v1 });
+                    }
+                    this.renderRecoverStep('success', bodyEl, icons);
+                }
+            };
+            
+        } else if (step === 'success') {
+            bodyEl.innerHTML = `
+              <div class="auth-rec" style="padding: 1rem 0; text-align: center;">
+                <div class="auth-rec-head">
+                  <span class="auth-rec-ico auth-ico-ok" style="background: linear-gradient(135deg, var(--green), var(--greenDark));">
+                    ${icons.check}
+                  </span>
+                  <h3 style="color: var(--themeDark); font-size: 1.3rem; margin-top: 1rem;">¡Contraseña Actualizada!</h3>
+                  <p style="color: var(--neutralSecondary); font-size: 0.9rem; line-height: 1.5;">
+                    Su contraseña ha sido cambiada exitosamente.<br>
+                    Ya puede iniciar sesión con su nueva contraseña.
+                  </p>
+                </div>
+                <button class="login-submit-btn" id="close-success-btn" 
+                        style="width:100%; margin-top: 24px; background: var(--themePrimary); border-radius: 12px; padding: 14px;">
+                  VOLVER AL LOGIN
+                </button>
+              </div>`;
+              
+            document.getElementById('close-success-btn').onclick = () => {
+                document.getElementById('recover-modal-overlay').style.display = 'none';
+                // Limpiar los campos de login
+                const usernameInput = document.getElementById('login-username');
+                const passwordInput = document.getElementById('login-password');
+                if (usernameInput) usernameInput.value = '';
+                if (passwordInput) passwordInput.value = '';
+                this.recoveryUser = null;
+            };
         }
     }
 
     renderMessages() {
         const root = document.getElementById('messages-list');
         if (!root) return;
+        // Limpiar contenido anterior
+        root.innerHTML = '';
         mountNotifications(root, {
             store: this.store,
             user: this.user
@@ -729,6 +988,7 @@ class HospitalApp {
     renderProfile() {
         const root = document.getElementById('profile-root');
         if (!root) return;
+        root.innerHTML = '';
         mountProfile(root, {
             bus: this.bus,
             store: this.store,
@@ -739,6 +999,7 @@ class HospitalApp {
     renderAreas() {
         const root = document.getElementById('areas-list-container');
         if (!root) return;
+        root.innerHTML = '';
         mountAreas(root, {
             bus: this.bus,
             store: this.store,
@@ -750,6 +1011,7 @@ class HospitalApp {
     renderClinical() {
         const root = document.getElementById('clinical-root');
         if (!root) return;
+        root.innerHTML = '';
         mountClinical(root, {
             bus: this.bus,
             store: this.store,
@@ -794,7 +1056,13 @@ class HospitalApp {
         const tabs = document.querySelectorAll('#my-appointments-tabs .appt-tab');
         tabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.filter === filter);
-            tab.onclick = () => this.renderMyAppointments(tab.dataset.filter);
+            // Remover listener anterior para evitar duplicados
+            if (tab._listener) {
+                tab.removeEventListener('click', tab._listener);
+            }
+            const handler = () => this.renderMyAppointments(tab.dataset.filter);
+            tab.addEventListener('click', handler);
+            tab._listener = handler;
         });
 
         let filtered = mine;
@@ -812,7 +1080,7 @@ class HospitalApp {
                 <div class="empty-state" style="text-align:center;padding:48px 24px;">
                     <i class="fa-regular fa-calendar-xmark" style="font-size:2.5rem;opacity:0.3;margin-bottom:16px;display:block;"></i>
                     <p style="margin:0 0 8px;color:var(--neutralSecondary);">No hay citas ${filter === 'scheduled' ? 'pendientes' : filter === 'completed' ? 'finalizadas' : 'registradas'}</p>
-                    <button onclick="app.navigate('new-appointment')" class="btn-primary" style="margin-top:12px;background:var(--themePrimary);padding:8px 20px;border-radius:20px;font-size:0.75rem;">
+                    <button onclick="window._patientApp?.navigate('new-appointment')" class="btn-primary" style="margin-top:12px;background:var(--themePrimary);padding:8px 20px;border-radius:20px;font-size:0.75rem;">
                         <i class="fa-solid fa-plus"></i> Agendar cita
                     </button>
                 </div>
@@ -860,15 +1128,24 @@ class HospitalApp {
             `;
         }).join('');
 
+        // Remover listeners existentes para evitar duplicados
         list.querySelectorAll('.view-apt-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            if (btn._listener) {
+                btn.removeEventListener('click', btn._listener);
+            }
+            const handler = (e) => {
                 e.stopPropagation();
                 this.showAppointmentDetail(btn.dataset.id);
-            });
+            };
+            btn.addEventListener('click', handler);
+            btn._listener = handler;
         });
         
         list.querySelectorAll('.cancel-apt-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+            if (btn._listener) {
+                btn.removeEventListener('click', btn._listener);
+            }
+            const handler = async (e) => {
                 e.stopPropagation();
                 const aptId = btn.dataset.id;
                 const apt = this.store.find('appointments', aptId);
@@ -881,16 +1158,23 @@ class HospitalApp {
                     });
                     this.renderMyAppointments(filter);
                 }
-            });
+            };
+            btn.addEventListener('click', handler);
+            btn._listener = handler;
         });
         
         list.querySelectorAll('.my-apt-card').forEach(card => {
-            card.addEventListener('click', (e) => {
+            if (card._listener) {
+                card.removeEventListener('click', card._listener);
+            }
+            const handler = (e) => {
                 if (!e.target.closest('button')) {
                     const aptId = card.dataset.id;
                     if (aptId) this.showAppointmentDetail(aptId);
                 }
-            });
+            };
+            card.addEventListener('click', handler);
+            card._listener = handler;
         });
     }
     

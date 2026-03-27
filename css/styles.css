@@ -117,7 +117,7 @@ body {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    gap: 35px;
+    gap: 30px;
 }
 
 .profile-section {
@@ -178,9 +178,8 @@ body {
 
 .badge {
     position: absolute;
-    top: 10px;
-    right: 12px;
-    background-color: var(--danger);
+    top: 15px;
+    right: 5px;
     width: 8px;
     height: 8px;
     border-radius: 50%;
@@ -199,7 +198,7 @@ body {
     border-radius: 16px;
     padding: 16px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-    margin: -20px 24px 24px;
+    margin: -10px 24px 24px;
     position: relative;
     z-index: 21;
 }
@@ -815,8 +814,8 @@ body {
 }
 
 .empty-state i {
-    font-size: 3rem;
-    margin-bottom: 15px;
+    font-size: 1.5rem;
+    margin-bottom: 0;
     opacity: 0.5;
 }
 
@@ -976,8 +975,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
+    width: 30px;
+    height: 30px;
     border-radius: 8px;
     transition: background 0.2s;
 }
@@ -2242,7 +2241,7 @@ input:invalid:not(:placeholder-shown) {
 .search-input-wrap i {
     position: absolute;
     left: 14px;
-    top: 50%;
+    top: 40%;
     transform: translateY(-50%);
     color: var(--neutralTertiary);
     pointer-events: none;
@@ -2512,4 +2511,4 @@ select:disabled {
     color: var(--neutralSecondary);
     display: block;
     margin-top: 2px;
-}
+}

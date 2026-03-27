@@ -78,10 +78,15 @@ export function mountNotifications(root, { store, user }) {
         view: 'list',   // 'list' | 'detail' | 'compose'
         viewingId: null,
         replyTo: null,
-        editingDraftId: null
+        editingDraftId: null,
+        // Para evitar reconstrucción completa del DOM en búsqueda
+        searchTimeout: null
     };
 
     let allData = { messages: [], notifications: [], reminders: [], drafts: [] };
+    let currentRoot = root;
+    let searchInput = null;
+    let isRendering = false;
 
     // ── Cargar datos ──────────────────────────────────────────────────────────
     function loadData() {
@@ -189,8 +194,110 @@ export function mountNotifications(root, { store, user }) {
         ).length;
     }
 
-    // ── RENDER ────────────────────────────────────────────────────────────────
+    // ── ACTUALIZAR LISTA SIN RECONSTRUIR TODO ────────────────────────────────────────────────
+    function updateListOnly() {
+        if (state.view !== 'list') return;
+        
+        const items = getFolderItems();
+        const listContainer = currentRoot.querySelector('.notif-list-container');
+        
+        if (!listContainer) {
+            // Si no existe el contenedor de lista, hacer render completo
+            render();
+            return;
+        }
+        
+        // Actualizar solo el contenido de la lista
+        if (items.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align:center;padding:48px 16px;color:var(--neutralSecondary);">
+                    <i class="fa-solid fa-inbox" style="font-size:2.5rem;opacity:.25;display:block;margin-bottom:12px;"></i>
+                    <div style="font-weight:600;margin-bottom:4px;">No hay mensajes</div>
+                    <div style="font-size:0.78rem;">Los mensajes aparecerán aquí.</div>
+                </div>`;
+            return;
+        }
+        
+        listContainer.innerHTML = buildListHTML(items);
+        bindListEvents(listContainer);
+    }
+    
+    function buildListHTML(items) {
+        if (!items.length) {
+            return `
+                <div style="text-align:center;padding:48px 16px;color:var(--neutralSecondary);">
+                    <i class="fa-solid fa-inbox" style="font-size:2.5rem;opacity:.25;display:block;margin-bottom:12px;"></i>
+                    <div style="font-weight:600;margin-bottom:4px;">No hay mensajes</div>
+                    <div style="font-size:0.78rem;">Los mensajes aparecerán aquí.</div>
+                </div>`;
+        }
+        
+        return items.map(item => {
+            const isDraft = item._src === 'drafts';
+            const isUnread = !isDraft &&
+                item.createdBy !== user?.id &&
+                (item.status === 'sent' || item.status === 'pending' || item.status === 'scheduled' || item.status === 'delivered');
+            const sender = state.folder === 'sent' ? `Para: ${item.recipientName || '—'}`
+                : isDraft ? 'Borrador'
+                    : getActorName(item.createdBy);
+            const ac = avatarColor(sender);
+            const initial = (sender || 'S').charAt(0).toUpperCase();
+            
+            return `
+                <div class="notif-msg-row ${isUnread ? 'unread' : ''}" data-id="${item.id}"
+                     style="display:flex; align-items:center; gap:12px; padding:12px 14px;
+                            background:${isUnread ? 'rgba(0,120,180,0.03)' : '#fff'}; border-bottom:1px solid var(--neutralLighter);
+                            cursor:pointer; position:relative; overflow:hidden;">
+                    ${isUnread ? '<div style="position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--themePrimary);"></div>' : ''}
+                    <div class="notif-actor-avatar" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1.1rem;flex-shrink:0;background:${ac};">
+                        ${initial}
+                    </div>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+                        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px;">
+                            <span style="font-size:0.9rem; font-weight:${isUnread ? '800' : '600'}; color:${isDraft ? '#b45309' : 'var(--neutralPrimary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sender)}</span>
+                            <span style="font-size:0.75rem; color:${isUnread ? 'var(--themePrimary)' : 'var(--neutralSecondary)'}; font-weight:${isUnread ? '700' : 'normal'}; flex-shrink:0;">${fmtDate(item.createdAt)}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;">
+                            <span style="font-size:0.85rem; font-weight:${isUnread ? '700' : '600'}; color:var(--neutralDark); flex-shrink:0;">${escapeHtml(item.title || '(sin asunto)')}</span>
+                            <span style="font-size:0.85rem; color:var(--neutralSecondary); margin-left:4px; overflow:hidden; text-overflow:ellipsis;">— ${escapeHtml((item.content || '').replace(/\n/g, ' '))}</span>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function bindListEvents(listContainer) {
+        listContainer.querySelectorAll('.notif-msg-row').forEach(row => {
+            if (row._listener) {
+                row.removeEventListener('click', row._listener);
+            }
+            const handler = () => {
+                const id = row.dataset.id;
+                markRead(id);
+                state.viewingId = id;
+                state.view = 'detail';
+                render();
+            };
+            row.addEventListener('click', handler);
+            row._listener = handler;
+        });
+    }
+
+    // ── RENDER PRINCIPAL (solo se ejecuta cuando cambia la vista o carpeta) ──
     function render() {
+        if (isRendering) return;
+        isRendering = true;
+        
         loadData();
         const items = getFolderItems();
         const unread = unreadCount();
@@ -202,8 +309,11 @@ export function mountNotifications(root, { store, user }) {
             badge.style.display = unread > 0 ? '' : 'none';
         }
 
-        root.innerHTML = '';
-
+        // Guardar el valor actual de búsqueda antes de reconstruir
+        const currentSearchValue = state.search;
+        
+        currentRoot.innerHTML = '';
+        
         // Cabecera de la vista
         const header = document.createElement('div');
         header.style.cssText = 'padding:0 0 12px;';
@@ -237,84 +347,58 @@ export function mountNotifications(root, { store, user }) {
             <!-- Buscador -->
             <div class="search-input-wrap" style="margin-top:10px;">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input id="notif-search-input" type="text" placeholder="Buscar mensajes..." value="${state.search}">
+                <input id="notif-search-input" type="text" placeholder="Buscar mensajes..." value="${escapeHtml(currentSearchValue)}">
             </div>
         `;
-        root.appendChild(header);
+        currentRoot.appendChild(header);
 
         // Cuerpo según vista
         if (state.view === 'compose') {
-            root.appendChild(buildCompose());
+            currentRoot.appendChild(buildCompose());
         } else if (state.view === 'detail' && state.viewingId) {
-            root.appendChild(buildDetail());
+            currentRoot.appendChild(buildDetail());
         } else {
-            root.appendChild(buildList(items));
+            const listContainer = document.createElement('div');
+            listContainer.className = 'notif-list-container';
+            listContainer.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+            listContainer.innerHTML = buildListHTML(items);
+            currentRoot.appendChild(listContainer);
+            bindListEvents(listContainer);
         }
 
         bindEvents();
-    }
-
-    // ── LISTA ─────────────────────────────────────────────────────────────────
-    function buildList(items) {
-        const wrap = document.createElement('div');
-        wrap.className = 'notif-list-container';
-        wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
-
-        if (!items.length) {
-            wrap.innerHTML = `
-                <div style="text-align:center;padding:48px 16px;color:var(--neutralSecondary);">
-                    <i class="fa-solid fa-inbox" style="font-size:2.5rem;opacity:.25;display:block;margin-bottom:12px;"></i>
-                    <div style="font-weight:600;margin-bottom:4px;">No hay mensajes</div>
-                    <div style="font-size:0.78rem;">Los mensajes aparecerán aquí.</div>
-                </div>`;
-            return wrap;
+        
+        // Restaurar el valor del input de búsqueda y configurar el listener
+        const searchInputEl = currentRoot.querySelector('#notif-search-input');
+        if (searchInputEl) {
+            searchInputEl.value = state.search;
+            setupSearchListener(searchInputEl);
         }
-
-        items.forEach(item => {
-            const isDraft = item._src === 'drafts';
-            const isUnread = !isDraft &&
-                item.createdBy !== user?.id &&
-                (item.status === 'sent' || item.status === 'pending' || item.status === 'scheduled' || item.status === 'delivered');
-            const sender = state.folder === 'sent' ? `Para: ${item.recipientName || '—'}`
-                : isDraft ? 'Borrador'
-                    : getActorName(item.createdBy);
-            const ac = avatarColor(sender);
-            const initial = (sender || 'S').charAt(0).toUpperCase();
-
-            const row = document.createElement('div');
-            row.dataset.id = item.id;
-            row.className = `notif-msg-row ${isUnread ? 'unread' : ''}`;
-            row.style.cssText = `
-                display:flex; align-items:center; gap:12px; padding:12px 14px;
-                background:${isUnread ? 'rgba(0,120,180,0.03)' : '#fff'}; border-bottom:1px solid var(--neutralLighter);
-                cursor:pointer; position:relative; overflow:hidden;
-            `;
-
-            row.innerHTML = `
-                ${isUnread ? '<div style="position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--themePrimary);"></div>' : ''}
-                <div class="notif-actor-avatar" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1.1rem;flex-shrink:0;background:${ac};">
-                    ${initial}
-                </div>
-                <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
-                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px;">
-                        <span style="font-size:0.9rem; font-weight:${isUnread ? '800' : '600'}; color:${isDraft ? '#b45309' : 'var(--neutralPrimary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sender}</span>
-                        <span style="font-size:0.75rem; color:${isUnread ? 'var(--themePrimary)' : 'var(--neutralSecondary)'}; font-weight:${isUnread ? '700' : 'normal'}; flex-shrink:0;">${fmtDate(item.createdAt)}</span>
-                    </div>
-                    <div style="display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;">
-                        <span style="font-size:0.85rem; font-weight:${isUnread ? '700' : '600'}; color:var(--neutralDark); flex-shrink:0;">${item.title || '(sin asunto)'}</span>
-                        <span style="font-size:0.85rem; color:var(--neutralSecondary); margin-left:4px; overflow:hidden; text-overflow:ellipsis;">— ${(item.content || '').replace(/\n/g, ' ')}</span>
-                    </div>
-                </div>
-            `;
-            row.addEventListener('click', () => {
-                markRead(item.id);
-                state.viewingId = item.id;
-                state.view = 'detail';
-                render();
-            });
-            wrap.appendChild(row);
-        });
-        return wrap;
+        
+        isRendering = false;
+    }
+    
+    function setupSearchListener(inputEl) {
+        // Remover listener anterior si existe
+        if (inputEl._listener) {
+            inputEl.removeEventListener('input', inputEl._listener);
+        }
+        
+        const handler = (e) => {
+            // Actualizar el estado de búsqueda
+            const newValue = e.target.value;
+            state.search = newValue;
+            
+            // Usar debounce para no actualizar demasiado rápido
+            if (state.searchTimeout) clearTimeout(state.searchTimeout);
+            state.searchTimeout = setTimeout(() => {
+                // Actualizar solo la lista sin reconstruir todo el módulo
+                updateListOnly();
+            }, 300);
+        };
+        
+        inputEl.addEventListener('input', handler);
+        inputEl._listener = handler;
     }
 
     // ── DETALLE ───────────────────────────────────────────────────────────────
@@ -359,13 +443,13 @@ export function mountNotifications(root, { store, user }) {
                 </div>
                 <div style="flex:1;min-width:0;">
                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-                         <h3 style="margin:0;font-size:1.15rem;color:var(--neutralDark);font-weight:600;">${item.title || '(sin asunto)'}</h3>
+                         <h3 style="margin:0;font-size:1.15rem;color:var(--neutralDark);font-weight:600;">${escapeHtml(item.title || '(sin asunto)')}</h3>
                          ${chBadge(item.channel)} ${prBadge(item.priority)}
                      </div>
                      <div style="font-size:0.8rem;color:var(--neutralSecondary);display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-                        <strong style="color:var(--neutralPrimary);">${senderName}</strong>
+                        <strong style="color:var(--neutralPrimary);">${escapeHtml(senderName)}</strong>
                         <span>→</span>
-                        <span>${item.recipientName || '—'}</span>
+                        <span>${escapeHtml(item.recipientName || '—')}</span>
                      </div>
                      <div style="font-size:0.75rem;color:var(--neutralSecondary);margin-top:6px;">${fmtFull(item.createdAt)}</div>
                 </div>
@@ -373,7 +457,7 @@ export function mountNotifications(root, { store, user }) {
             
             <!-- Cuerpo estilo Web -->
             <div style="font-size:0.95rem;color:var(--neutralDark);line-height:1.75;white-space:pre-wrap;padding:0 8px 20px;">
-                ${item.content || 'Sin contenido'}
+                ${escapeHtml(item.content || 'Sin contenido')}
             </div>
 
             ${item.appointmentId ? `
@@ -422,9 +506,7 @@ export function mountNotifications(root, { store, user }) {
         }
 
         const patients = store.get('patients') || [];
-        const doctors = store.get('doctors') || [];
         const allUsers = store.get('users') || [];
-        const adminUsers = allUsers.filter(u => u.role === 'admin');
 
         const wrap = document.createElement('div');
         wrap.innerHTML = `
@@ -447,8 +529,8 @@ export function mountNotifications(root, { store, user }) {
                     <div style="flex:1; position:relative;">
                         ${replyTo && !isEditing ? `
                         <div style="font-size:0.9rem;font-weight:700;color:var(--themePrimary); padding:4px 0;">
-                            ${getActorName(initTo)}
-                            <input type="hidden" id="cmp-to" value="${initTo}">
+                            ${escapeHtml(getActorName(initTo))}
+                            <input type="hidden" id="cmp-to" value="${escapeHtml(initTo)}">
                         </div>` : `
                         <select id="cmp-to" class="compose-field" required>
                             <option value="">Seleccionar destinatario...</option>
@@ -458,7 +540,7 @@ export function mountNotifications(root, { store, user }) {
                                 <option value="role_nurse"        ${initTo === 'role_nurse' ? 'selected' : ''}>Enfermería</option>
                             </optgroup>
                             <optgroup label="Pacientes Registrados">
-                                ${patients.map(p => `<option value="${p.id}" ${p.id === initTo ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                ${patients.map(p => `<option value="${p.id}" ${p.id === initTo ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                             </optgroup>
                         </select>
                         <i class="fa-solid fa-chevron-down" style="position:absolute; right:0; top:50%; transform:translateY(-50%); font-size:0.7rem; color:var(--neutralSecondary); pointer-events:none;"></i>`}
@@ -468,7 +550,7 @@ export function mountNotifications(root, { store, user }) {
                 <!-- Asunto -->
                 <div class="compose-input-group">
                     <span class="compose-label">Asunto</span>
-                    <input id="cmp-subj" class="compose-field" type="text" required placeholder="Escriba el título del mensaje" value="${initSubj}">
+                    <input id="cmp-subj" class="compose-field" type="text" required placeholder="Escriba el título del mensaje" value="${escapeHtml(initSubj)}">
                 </div>
 
                 <!-- Parámetros -->
@@ -494,7 +576,7 @@ export function mountNotifications(root, { store, user }) {
                 <!-- Mensaje -->
                 <textarea id="cmp-body" required placeholder="Escriba su mensaje con detalle aquí..."
                     style="width:100%; border:none; padding:18px; font-size:0.9rem; min-height:180px;
-                           outline:none; font-family:inherit; line-height:1.7; color:var(--neutralDark); border-bottom:1px solid var(--neutralLighter);">${initBody}</textarea>
+                           outline:none; font-family:inherit; line-height:1.7; color:var(--neutralDark); border-bottom:1px solid var(--neutralLighter);">${escapeHtml(initBody)}</textarea>
 
                 <!-- Acciones del formulario -->
                 <div style="display:flex;align-items:center;gap:12px;padding:15px;background:#fff;border-top:1px solid var(--neutralLighter); border-radius:0 0 18px 18px;">
@@ -525,6 +607,13 @@ export function mountNotifications(root, { store, user }) {
         if (!src || !item) return;
         if (item.status !== 'read' && item.createdBy !== user?.id) {
             store.update(src, id, { status: 'read' });
+            // Actualizar badge después de marcar como leído
+            const unread = unreadCount();
+            const badge = document.getElementById('notif-badge');
+            if (badge) {
+                badge.textContent = unread > 0 ? (unread > 99 ? '99+' : unread) : '';
+                badge.style.display = unread > 0 ? '' : 'none';
+            }
         }
     }
 
@@ -565,7 +654,7 @@ export function mountNotifications(root, { store, user }) {
                 'role_patient': 'Pacientes'
             }[val] || val)
             : (toEl.tagName === 'SELECT'
-                ? toEl.options[toEl.selectedIndex]?.dataset?.name || getActorName(val)
+                ? toEl.options[toEl.selectedIndex]?.text || getActorName(val)
                 : getActorName(val));
 
         store.add('messages', {
@@ -632,72 +721,126 @@ export function mountNotifications(root, { store, user }) {
     // ── BIND ──────────────────────────────────────────────────────────────────
     function bindEvents() {
         // Carpetas
-        root.querySelectorAll('[data-folder]').forEach(btn => {
-            btn.addEventListener('click', () => {
+        currentRoot.querySelectorAll('[data-folder]').forEach(btn => {
+            if (btn._listener) {
+                btn.removeEventListener('click', btn._listener);
+            }
+            const handler = () => {
                 state.folder = btn.dataset.folder;
                 state.view = 'list';
                 state.viewingId = null;
                 render();
-            });
+            };
+            btn.addEventListener('click', handler);
+            btn._listener = handler;
         });
-
-        // Buscador
-        const searchInput = root.querySelector('#notif-search-input');
-        if (searchInput) {
-            let _t;
-            searchInput.addEventListener('input', () => {
-                clearTimeout(_t);
-                _t = setTimeout(() => { state.search = searchInput.value; render(); }, 300);
-            });
-        }
 
         // Redactar
-        root.querySelector('#notif-compose-btn')?.addEventListener('click', () => {
-            state.view = 'compose'; state.replyTo = null; state.editingDraftId = null; render();
-        });
+        const composeBtn = currentRoot.querySelector('#notif-compose-btn');
+        if (composeBtn) {
+            if (composeBtn._listener) composeBtn.removeEventListener('click', composeBtn._listener);
+            const handler = () => {
+                state.view = 'compose'; state.replyTo = null; state.editingDraftId = null; render();
+            };
+            composeBtn.addEventListener('click', handler);
+            composeBtn._listener = handler;
+        }
 
         // Detalle — volver
-        root.querySelector('#detail-back')?.addEventListener('click', () => {
-            state.view = 'list'; state.viewingId = null; render();
-        });
+        const detailBack = currentRoot.querySelector('#detail-back');
+        if (detailBack) {
+            if (detailBack._listener) detailBack.removeEventListener('click', detailBack._listener);
+            const handler = () => {
+                state.view = 'list'; state.viewingId = null; render();
+            };
+            detailBack.addEventListener('click', handler);
+            detailBack._listener = handler;
+        }
 
         // Detalle — estrella
-        root.querySelector('[data-action="star"]')?.addEventListener('click', e => {
-            toggleStar(e.currentTarget.dataset.id); render();
-        });
+        const starBtn = currentRoot.querySelector('[data-action="star"]');
+        if (starBtn) {
+            if (starBtn._listener) starBtn.removeEventListener('click', starBtn._listener);
+            const handler = (e) => {
+                toggleStar(e.currentTarget.dataset.id); render();
+            };
+            starBtn.addEventListener('click', handler);
+            starBtn._listener = handler;
+        }
 
         // Detalle — eliminar
-        root.querySelector('[data-action="delete-detail"]')?.addEventListener('click', e => {
-            deleteItem(e.currentTarget.dataset.id);
-        });
+        const deleteBtn = currentRoot.querySelector('[data-action="delete-detail"]');
+        if (deleteBtn) {
+            if (deleteBtn._listener) deleteBtn.removeEventListener('click', deleteBtn._listener);
+            const handler = (e) => {
+                deleteItem(e.currentTarget.dataset.id);
+            };
+            deleteBtn.addEventListener('click', handler);
+            deleteBtn._listener = handler;
+        }
 
         // Detalle — responder
-        root.querySelector('#reply-btn')?.addEventListener('click', () => {
-            state.replyTo = findItem(state.viewingId);
-            state.view = 'compose'; state.editingDraftId = null; render();
-        });
+        const replyBtn = currentRoot.querySelector('#reply-btn');
+        if (replyBtn) {
+            if (replyBtn._listener) replyBtn.removeEventListener('click', replyBtn._listener);
+            const handler = () => {
+                state.replyTo = findItem(state.viewingId);
+                state.view = 'compose'; state.editingDraftId = null; render();
+            };
+            replyBtn.addEventListener('click', handler);
+            replyBtn._listener = handler;
+        }
 
         // Detalle — editar borrador
-        root.querySelector('#edit-draft-btn')?.addEventListener('click', e => {
-            state.editingDraftId = e.currentTarget.dataset.id;
-            state.view = 'compose'; state.replyTo = null; render();
-        });
+        const editDraftBtn = currentRoot.querySelector('#edit-draft-btn');
+        if (editDraftBtn) {
+            if (editDraftBtn._listener) editDraftBtn.removeEventListener('click', editDraftBtn._listener);
+            const handler = (e) => {
+                state.editingDraftId = e.currentTarget.dataset.id;
+                state.view = 'compose'; state.replyTo = null; render();
+            };
+            editDraftBtn.addEventListener('click', handler);
+            editDraftBtn._listener = handler;
+        }
 
         // Redactar — cancelar
-        root.querySelector('#compose-cancel-btn')?.addEventListener('click', () => {
-            state.view = 'list'; state.replyTo = null; state.editingDraftId = null; render();
-        });
+        const composeCancel = currentRoot.querySelector('#compose-cancel-btn');
+        if (composeCancel) {
+            if (composeCancel._listener) composeCancel.removeEventListener('click', composeCancel._listener);
+            const handler = () => {
+                state.view = 'list'; state.replyTo = null; state.editingDraftId = null; render();
+            };
+            composeCancel.addEventListener('click', handler);
+            composeCancel._listener = handler;
+        }
 
         // Redactar — enviar
-        const composeForm = root.querySelector('#compose-form');
+        const composeForm = currentRoot.querySelector('#compose-form');
         if (composeForm) {
-            composeForm.addEventListener('submit', e => { e.preventDefault(); sendMessage(composeForm); });
+            if (composeForm._submitListener) composeForm.removeEventListener('submit', composeForm._submitListener);
+            const submitHandler = (e) => { e.preventDefault(); sendMessage(composeForm); };
+            composeForm.addEventListener('submit', submitHandler);
+            composeForm._submitListener = submitHandler;
+            
             // Guardar borrador
-            root.querySelector('#save-draft-btn')?.addEventListener('click', () => saveDraft(composeForm));
+            const saveDraftBtn = currentRoot.querySelector('#save-draft-btn');
+            if (saveDraftBtn) {
+                if (saveDraftBtn._listener) saveDraftBtn.removeEventListener('click', saveDraftBtn._listener);
+                const draftHandler = () => saveDraft(composeForm);
+                saveDraftBtn.addEventListener('click', draftHandler);
+                saveDraftBtn._listener = draftHandler;
+            }
+            
             // Descartar
-            root.querySelector('#discard-btn')?.addEventListener('click', () => {
-                state.view = 'list'; state.replyTo = null; state.editingDraftId = null; render();
-            });
+            const discardBtn = currentRoot.querySelector('#discard-btn');
+            if (discardBtn) {
+                if (discardBtn._listener) discardBtn.removeEventListener('click', discardBtn._listener);
+                const discardHandler = () => {
+                    state.view = 'list'; state.replyTo = null; state.editingDraftId = null; render();
+                };
+                discardBtn.addEventListener('click', discardHandler);
+                discardBtn._listener = discardHandler;
+            }
         }
     }
 
