@@ -1,6 +1,7 @@
 // ============================================================
 //  MÓDULO: MI PERFIL (Paciente Móvil)
 //  Adaptado de la versión web para el entorno APK.
+//  Permite al paciente cargar una imagen de perfil
 // ============================================================
 
 export function mountProfile(root, { bus, store, user }) {
@@ -29,7 +30,8 @@ export function mountProfile(root, { bus, store, user }) {
         cancel: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
         calendar: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
         id: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>`,
-        check: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+        check: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        camera: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`
     };
 
     // ── Helpers ──────────────────────────────────────────────────
@@ -66,6 +68,9 @@ export function mountProfile(root, { bus, store, user }) {
     // ── Vista de solo lectura ─────────────────────────────────────
     function renderView(p) {
         const initials = p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        // Obtener la foto de perfil si existe
+        const profilePicture = p.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=003b69&color=fff&bold=true&size=200`;
+        
         return `
 <style>
 .profile-mobile-wrap { display:flex; flex-direction:column; gap:1rem; padding-bottom: 2rem; }
@@ -88,19 +93,58 @@ export function mountProfile(root, { bus, store, user }) {
 .btn-edit-m {
   background: var(--themePrimary); color: white; border: none; padding: 12px; border-radius: 12px;
   font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
+  transition: all 0.2s ease;
+  margin-top: 16px;
+}
+.btn-edit-m:active {
+  transform: scale(0.98);
+}
+.profile-header-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(to bottom, #f8fafc, #ffffff);
+  border-bottom: 1px solid #e2e8f0;
+}
+.profile-photo-view {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid var(--themePrimary);
+  flex-shrink: 0;
+}
+.profile-info {
+  flex: 1;
+}
+.profile-name {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--themeDark);
+  margin-bottom: 4px;
+}
+.profile-dni {
+  font-size: 0.7rem;
+  color: var(--neutralSecondary);
 }
 </style>
 
 <div class="profile-mobile-wrap">
 
-  <!-- HERO -->
-  <div class="profile-card-m" style="padding: 1.5rem; text-align: center; background: linear-gradient(to bottom, #f8fafc, #ffffff);">
-    <div style="width:80px; height:80px; border-radius:50%; background:var(--themePrimary); color:white; display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:800; margin:0 auto 1rem; border:4px solid var(--themeLighter);">
-      ${initials}
+  <!-- Cabecera con foto alineada a la izquierda -->
+  <div class="profile-card-m">
+    <div class="profile-header-row">
+      <div class="profile-photo-view" style="background-image: url('${profilePicture}');"></div>
+      <div class="profile-info">
+        <div class="profile-name">${p.name}</div>
+        <div class="profile-dni">Cédula: ${p.docType || 'V'}-${p.dni || '—'}</div>
+      </div>
     </div>
-    <h2 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--themeDark);">${p.name}</h2>
-    <p style="margin:0.5rem 0 1rem; font-size:0.85rem; color:var(--neutralSecondary);">Cédula: ${p.dni || '—'}</p>
-    <button class="btn-edit-m" id="btn-edit-profile">${I.edit} Editar Datos</button>
+    <div style="padding: 0 16px 16px 16px;">
+      <button class="btn-edit-m" id="btn-edit-profile">${I.edit} Editar Datos</button>
+    </div>
   </div>
 
   <!-- SECCIONES -->
@@ -147,13 +191,25 @@ export function mountProfile(root, { bus, store, user }) {
 </div>`;
     }
 
-    // ── Formulario de edición ─────────────────────────────────────
+    // ── Formulario de edición con carga de imagen (foto de 60px) ─────────────────────────────────────
     function renderEditForm(p) {
+        const currentPhoto = p.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=003b69&color=fff&bold=true&size=200`;
+        
         return `
 <div class="profile-mobile-wrap">
   <div class="profile-card-m" style="padding: 1.25rem;">
     <h3 style="margin-bottom:1.25rem; font-size:1rem; color:var(--themePrimary);">Editar Información</h3>
     
+    <!-- Selector de Foto de Perfil (tamaño 60px) -->
+    <div class="profile-photo-container" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem; padding: 1rem; background: var(--neutralLighterAlt); border-radius: 20px; border: 2px dashed var(--neutralQuaternaryAlt);">
+      <div id="profile-preview-circle" style="width: 60px; height: 60px; border-radius: 50%; background-size: cover; background-position: center; background-image: url('${currentPhoto}'); border: 3px solid var(--themePrimary); margin-bottom: 12px;"></div>
+      <button type="button" id="btn-change-photo" style="background: var(--themePrimary); color: white; border: none; padding: 8px 20px; border-radius: 25px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-camera"></i> Cambiar Foto
+      </button>
+      <input type="file" id="profile-file-input" hidden accept="image/*">
+      <p style="font-size: 0.65rem; color: var(--neutralSecondary); margin-top: 8px;">Formato recomendado: JPG o PNG, máximo 2MB</p>
+    </div>
+
     <div class="form-group" style="margin-bottom:1rem;">
       <label class="login-label">Nombre Completo</label>
       <input class="login-input" id="ef-name" type="text" value="${p.name || ''}">
@@ -200,6 +256,41 @@ export function mountProfile(root, { bus, store, user }) {
             render();
         });
 
+        // Configurar la carga de imagen
+        const fileInput = root.querySelector('#profile-file-input');
+        const preview = root.querySelector('#profile-preview-circle');
+        
+        if (fileInput && preview) {
+            const changePhotoBtn = root.querySelector('#btn-change-photo');
+            if (changePhotoBtn) {
+                changePhotoBtn.addEventListener('click', () => fileInput.click());
+            }
+            
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validar tipo y tamaño
+                    if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+                        if (window.showToast) window.showToast('Solo se permiten imágenes JPG o PNG', 'var(--red)');
+                        return;
+                    }
+                    if (file.size > 2 * 1024 * 1024) {
+                        if (window.showToast) window.showToast('La imagen no debe superar los 2MB', 'var(--red)');
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = (rl) => {
+                        const imgData = rl.target.result;
+                        preview.style.backgroundImage = `url('${imgData}')`;
+                        // Guardar temporalmente la imagen para cuando se guarde el perfil
+                        state.tempProfilePicture = imgData;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+        }
+
         root.querySelector('#btn-save-profile')?.addEventListener('click', () => {
             const p = state.patient;
             const updated = {
@@ -214,14 +305,36 @@ export function mountProfile(root, { bus, store, user }) {
                 },
                 updatedAt: Date.now()
             };
+            
+            // Agregar la foto de perfil si se cambió
+            if (state.tempProfilePicture) {
+                updated.profilePicture = state.tempProfilePicture;
+                delete state.tempProfilePicture;
+            }
 
             store.update('patients', p.id, updated);
             state.editing = false;
-            if (window.showToast) window.showToast('Perfil actualizado');
+            
+            if (window.showToast) window.showToast('Perfil actualizado correctamente', 'var(--green)');
             render();
 
-            // Emitir evento para actualizar el header si es necesario
-            if (bus && bus.emit) bus.emit('profile-updated', updated);
+            // Emitir evento para actualizar el header y sidebar
+            if (bus && bus.emit) {
+                bus.emit('profile-updated', updated);
+                // Evento específico para actualizar la foto en toda la app
+                if (updated.profilePicture) {
+                    bus.emit('profile-picture-updated', { patientId: p.id, imgData: updated.profilePicture });
+                }
+            }
+            
+            // Actualizar también el user global si existe
+            if (window._patientApp && window._patientApp.user) {
+                window._patientApp.user.name = updated.name;
+                if (updated.profilePicture) {
+                    window._patientApp.patientRecord.profilePicture = updated.profilePicture;
+                }
+                window._patientApp.renderHeader();
+            }
         });
     }
 

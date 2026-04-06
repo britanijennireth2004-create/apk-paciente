@@ -295,7 +295,7 @@ class HospitalApp {
             item._listener = handler;
         });
 
-        // Configurar navegación por sidebar
+        // Configurar navegación por sidebar (excluir ayuda y soporte)
         document.querySelectorAll('.sidebar-item[data-view]').forEach(item => {
             if (item._listener) {
                 item.removeEventListener('click', item._listener);
@@ -447,9 +447,16 @@ class HospitalApp {
             if (sidebarName) sidebarName.textContent = this.user.name;
             if (sidebarDni) sidebarDni.textContent = `Cédula: ${this.user.docType || 'V'}-${this.user.dni || '—'}`;
             
-            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=003b69&color=fff&bold=true&size=80`;
-            if (imgEl) imgEl.style.backgroundImage = `url('${avatarUrl}')`;
-            if (sidebarImg) sidebarImg.style.backgroundImage = `url('${avatarUrl}')`;
+            // Usar foto de perfil si existe, si no, usar avatar por iniciales
+            const profilePic = this.patientRecord?.profilePicture;
+            if (profilePic) {
+                if (imgEl) imgEl.style.backgroundImage = `url('${profilePic}')`;
+                if (sidebarImg) sidebarImg.style.backgroundImage = `url('${profilePic}')`;
+            } else {
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=003b69&color=fff&bold=true&size=80`;
+                if (imgEl) imgEl.style.backgroundImage = `url('${avatarUrl}')`;
+                if (sidebarImg) sidebarImg.style.backgroundImage = `url('${avatarUrl}')`;
+            }
 
             const hour = new Date().getHours();
             if (greetingEl) {
@@ -1023,6 +1030,7 @@ class HospitalApp {
     renderNewAppointment() {
         const doctors = this.store.get('doctors') || [];
         const patients = this.store.get('patients') || [];
+        const areas = this.store.get('areas') || [];
         
         mountNewAppointmentForm({
             store: this.store,
@@ -1030,6 +1038,7 @@ class HospitalApp {
             user: this.user,
             doctors: doctors,
             patients: patients,
+            areas: areas,
             isPatientPortal: true,
             onSave: async (newApt) => {
                 newApt.patientId = this.patientRecord.id;
