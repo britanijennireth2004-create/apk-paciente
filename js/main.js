@@ -52,6 +52,25 @@ window.promptDialog = function(message, defaultValue = '') {
     });
 };
 
+// Función para generar enlace de reunión virtual automáticamente
+function generateVirtualMeetingLink(patientName, doctorName, appointmentId) {
+    // Generar un ID único para la reunión
+    const meetingId = `${appointmentId || Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    // Sanitizar nombres para la URL
+    const cleanPatientName = encodeURIComponent((patientName || 'paciente').toLowerCase().replace(/\s+/g, '-'));
+    const cleanDoctorName = encodeURIComponent((doctorName || 'medico').toLowerCase().replace(/\s+/g, '-'));
+    
+    // Opción 1: Enlace estilo Google Meet (simulado)
+    const platforms = ['meet', 'zoom', 'teams', 'jitsi'];
+    const platform = platforms[Math.floor(Math.random() * platforms.length)];
+    
+    // Opción 2: Enlace personalizado del hospital
+    // return `https://telemedicina.humnt.gob.ve/room/${meetingId}`;
+    
+    // Opción 3: Enlace con nombres para fácil identificación
+    return `https://meet.humnt.gob.ve/${cleanPatientName}-${cleanDoctorName}-${meetingId.substring(0, 8)}`;
+}
+
 class HospitalApp {
     constructor() {
         this.bus = null;
@@ -111,9 +130,7 @@ class HospitalApp {
             }
         }
         
-        // Configurar eventos globales UNA SOLA VEZ
         this.setupGlobalEvents();
-        
         this.navigate('login');
         setInterval(() => this.updateStats(), 30000);
     }
@@ -227,7 +244,6 @@ class HospitalApp {
             this.user = null;
             this.patientRecord = null;
             
-            // Limpiar el contenedor #app si existe
             const appElement = document.getElementById('app');
             if (appElement) {
                 const appContainer = document.querySelector('.app-container');
@@ -250,7 +266,6 @@ class HospitalApp {
             
             this.updateChromeVisibility();
             
-            // Asegurar que la vista login esté activa
             document.querySelectorAll('.view').forEach(view => {
                 view.classList.remove('active');
             });
@@ -267,7 +282,6 @@ class HospitalApp {
             if (sidebar) sidebar.classList.remove('active');
             if (overlay) overlay.classList.remove('active');
             
-            // Asegurar que el app-container sea visible
             const appContainerFinal = document.querySelector('.app-container');
             if (appContainerFinal) appContainerFinal.style.display = 'flex';
         }
@@ -1138,7 +1152,7 @@ class HospitalApp {
         });
     }
 
-    // ==================== NUEVA CITA (Paciente) ====================
+    // ==================== NUEVA CITA (Paciente) - CORREGIDO ====================
     renderNewAppointment() {
         const doctors = this.store.get('doctors') || [];
         const areas = this.store.get('areas') || [];
@@ -1158,7 +1172,7 @@ class HospitalApp {
                     </div>
                     <div class="form-group">
                         <label>Nombre del Paciente</label>
-                        <input type="text" value="${patient.name}" readonly style="background:#f1f5f9;">
+                        <input type="text" value="${this.escapeHtml(patient.name)}" readonly style="background:#f1f5f9;">
                     </div>
                     <div class="form-group">
                         <label>Cédula de Identidad</label>
@@ -1180,14 +1194,14 @@ class HospitalApp {
                         <label>Médico Tratante *</label>
                         <select id="apt-doctor" name="doctorId" required>
                             <option value="">— Seleccionar médico —</option>
-                            ${doctors.filter(d => d.isActive !== false).map(d => `<option value="${d.id}">${d.name} • ${d.specialty || ''}</option>`).join('')}
+                            ${doctors.filter(d => d.isActive !== false).map(d => `<option value="${d.id}">${this.escapeHtml(d.name)} • ${d.specialty || ''}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Área / Servicio</label>
                         <select id="apt-area" name="areaId">
                             <option value="">— Seleccionar área —</option>
-                            ${areas.filter(a => a.isActive !== false).map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+                            ${areas.filter(a => a.isActive !== false).map(a => `<option value="${a.id}">${this.escapeHtml(a.name)}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -1205,8 +1219,11 @@ class HospitalApp {
                         </select>
                     </div>
                     <div class="form-group" id="apt-link-group" style="display:none;">
-                        <label>Enlace de Reunión Virtual</label>
-                        <input type="url" name="virtualLink" id="apt-virtual-link" placeholder="https://meet.google.com/...">
+                        <label>Enlace de Reunión Virtual (generado automáticamente)</label>
+                        <input type="url" name="virtualLink" id="apt-virtual-link" readonly style="background:#f0fdf4; color:#166534; font-weight:500;">
+                        <div style="font-size:0.7rem; color:var(--green); margin-top:4px;">
+                            <i class="fa-solid fa-check-circle"></i> El enlace se genera automáticamente al seleccionar modalidad virtual
+                        </div>
                     </div>
                 </div>
 
@@ -1262,21 +1279,76 @@ class HospitalApp {
         this.setupAppointmentForm(doctors);
     }
     
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    // Función para generar enlace de reunión virtual
+    generateVirtualMeetingLink(patientName, doctorName, appointmentId) {
+        const meetingId = `${appointmentId || Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+        const cleanPatientName = encodeURIComponent((patientName || 'paciente').toLowerCase().replace(/\s+/g, '-'));
+        const cleanDoctorName = encodeURIComponent((doctorName || 'medico').toLowerCase().replace(/\s+/g, '-'));
+        
+        // Enlace personalizado del hospital
+        return `https://telemedicina.humnt.gob.ve/consulta/${cleanPatientName}-${cleanDoctorName}/${meetingId.substring(0, 12)}`;
+    }
+    
     setupAppointmentForm(doctors) {
         const doctorSelect = document.getElementById('apt-doctor');
         const dateInput = document.getElementById('apt-date');
         const timeSelect = document.getElementById('apt-time');
         const modalitySelect = document.getElementById('apt-modality');
         const linkGroup = document.getElementById('apt-link-group');
+        const virtualLinkInput = document.getElementById('apt-virtual-link');
         const form = document.getElementById('new-apt-form');
         const errBox = document.getElementById('apt-global-error');
         
-        if (modalitySelect) {
+        // CORREGIDO: Generar enlace automáticamente al seleccionar modalidad virtual
+        if (modalitySelect && virtualLinkInput) {
             modalitySelect.addEventListener('change', () => {
+                const isVirtual = modalitySelect.value === 'virtual';
                 if (linkGroup) {
-                    linkGroup.style.display = modalitySelect.value === 'virtual' ? '' : 'none';
+                    linkGroup.style.display = isVirtual ? 'block' : 'none';
+                }
+                
+                if (isVirtual) {
+                    // Obtener datos del paciente y médico seleccionado
+                    const patientName = this.patientRecord?.name || 'paciente';
+                    const doctorId = doctorSelect?.value;
+                    const doctor = doctors.find(d => d.id === doctorId);
+                    const doctorName = doctor?.name || 'medico';
+                    const appointmentId = `apt-${Date.now()}`;
+                    
+                    // Generar enlace automático
+                    const autoLink = this.generateVirtualMeetingLink(patientName, doctorName, appointmentId);
+                    virtualLinkInput.value = autoLink;
+                    virtualLinkInput.style.background = '#f0fdf4';
+                    virtualLinkInput.style.color = '#166534';
+                } else {
+                    virtualLinkInput.value = '';
                 }
             });
+            
+            // También regenerar enlace si cambia el médico seleccionado
+            if (doctorSelect) {
+                doctorSelect.addEventListener('change', () => {
+                    if (modalitySelect.value === 'virtual') {
+                        const patientName = this.patientRecord?.name || 'paciente';
+                        const doctorId = doctorSelect.value;
+                        const doctor = doctors.find(d => d.id === doctorId);
+                        const doctorName = doctor?.name || 'medico';
+                        const appointmentId = `apt-${Date.now()}`;
+                        const autoLink = this.generateVirtualMeetingLink(patientName, doctorName, appointmentId);
+                        virtualLinkInput.value = autoLink;
+                    }
+                });
+            }
         }
         
         function loadSlots() {
@@ -1314,7 +1386,7 @@ class HospitalApp {
                 if (!data.doctorId) {
                     if (errBox) {
                         errBox.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Seleccione un médico';
-                        errBox.style.display = '';
+                        errBox.style.display = 'block';
                     }
                     return;
                 }
@@ -1322,12 +1394,24 @@ class HospitalApp {
                 if (!data.reason) {
                     if (errBox) {
                         errBox.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Describa el motivo de la consulta';
-                        errBox.style.display = '';
+                        errBox.style.display = 'block';
                     }
                     return;
                 }
                 
+                // Si es modalidad virtual y no hay enlace, generarlo automáticamente
+                let virtualLink = data.virtualLink || '';
+                if (data.modality === 'virtual' && !virtualLink) {
+                    const doctor = doctors.find(d => d.id === data.doctorId);
+                    virtualLink = this.generateVirtualMeetingLink(
+                        this.patientRecord?.name || 'paciente',
+                        doctor?.name || 'medico',
+                        `apt-${Date.now()}`
+                    );
+                }
+                
                 const newApt = {
+                    id: 'apt-' + Date.now(),
                     patientId: this.patientRecord.id,
                     doctorId: data.doctorId,
                     areaId: data.areaId || '',
@@ -1336,7 +1420,7 @@ class HospitalApp {
                     reason: data.reason || '',
                     notes: data.notes || '',
                     modality: data.modality || 'presential',
-                    virtualLink: data.modality === 'virtual' ? (data.virtualLink || '') : '',
+                    virtualLink: virtualLink,
                     status: 'scheduled',
                     createdBy: this.user.id,
                     createdAt: Date.now()
@@ -1346,7 +1430,12 @@ class HospitalApp {
                 const dt = new Date(newApt.dateTime);
                 const dateStr = dt.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
                 const timeStr = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                await UI.hospitalAlert(`Cita agendada con éxito para el ${dateStr} a las ${timeStr}.`, 'success');
+                
+                let message = `Cita agendada con éxito para el ${dateStr} a las ${timeStr}.`;
+                if (newApt.modality === 'virtual' && newApt.virtualLink) {
+                    message += `\n\nEnlace para la consulta virtual:\n${newApt.virtualLink}`;
+                }
+                await UI.hospitalAlert(message, 'success');
                 this.navigate('my-appointments');
             };
         }
@@ -1408,6 +1497,7 @@ class HospitalApp {
             const timeStr = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
             const st = statusMap[apt.status] || { label: apt.status, cls: 'status-scheduled' };
             const canCancel = apt.status === 'scheduled' || apt.status === 'confirmed';
+            const hasVirtualLink = apt.modality === 'virtual' && apt.virtualLink;
 
             return `
                 <div class="agenda-item my-apt-card" style="flex-direction:column;align-items:flex-start;gap:10px;cursor:pointer;" data-id="${apt.id}">
@@ -1425,7 +1515,9 @@ class HospitalApp {
                         <span class="status-badge ${st.cls}" style="font-size:0.65rem;padding:3px 10px;">${st.label}</span>
                     </div>
                     ${apt.reason ? `<div style="font-size:0.75rem;color:var(--neutralSecondary);padding-left:70px;">${apt.reason.substring(0, 60)}${apt.reason.length > 60 ? '…' : ''}</div>` : ''}
+                    ${hasVirtualLink ? `<div style="font-size:0.7rem;color:var(--blue);padding-left:70px;margin-top:4px;"><i class="fa-solid fa-video"></i> Enlace generado automáticamente</div>` : ''}
                     <div style="display:flex;gap:8px;padding-left:70px;">
+                        ${hasVirtualLink ? `<a href="${apt.virtualLink}" target="_blank" class="apt-action-btn apt-action-virtual" style="display:inline-flex;align-items:center;gap:5px;"><i class="fa-solid fa-video"></i> Unirse</a>` : ''}
                         ${canCancel ? `<button class="cancel-apt-btn" data-id="${apt.id}" style="background:#fee2e2;color:#dc2626;border:none;border-radius:20px;padding:5px 12px;font-size:0.7rem;font-weight:600;cursor:pointer;">Cancelar</button>` : ''}
                         <button class="view-apt-btn" data-id="${apt.id}" style="background:#f1f5f9;color:#475569;border:none;border-radius:20px;padding:5px 12px;font-size:0.7rem;font-weight:600;cursor:pointer;">Ver detalles</button>
                     </div>
@@ -1504,6 +1596,7 @@ class HospitalApp {
         const st = statusMap[apt.status] || { label: apt.status, color: '#64748b', icon: 'fa-circle' };
         
         const canCancel = apt.status === 'scheduled' || apt.status === 'confirmed';
+        const hasVirtualLink = apt.modality === 'virtual' && apt.virtualLink;
         
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s ease;';
@@ -1551,6 +1644,12 @@ class HospitalApp {
                                     ${apt.modality === 'virtual' ? '<i class="fa-solid fa-video"></i> Virtual / Telemedicina' : '<i class="fa-solid fa-hospital"></i> Presencial'}
                                 </div>
                             </div>
+                            ${hasVirtualLink ? `
+                            <div style="margin-bottom:8px;">
+                                <div style="font-size:0.7rem;color:#64748b;">Enlace Virtual</div>
+                                <a href="${apt.virtualLink}" target="_blank" style="font-size:0.75rem;color:var(--blue);word-break:break-all;">${apt.virtualLink}</a>
+                            </div>
+                            ` : ''}
                             ${apt.reason ? `
                             <div style="margin-bottom:8px;">
                                 <div style="font-size:0.7rem;color:#64748b;">Motivo</div>
@@ -1566,7 +1665,7 @@ class HospitalApp {
                         </div>
                     </div>
                     
-                    ${apt.modality === 'virtual' && apt.virtualLink ? `
+                    ${hasVirtualLink ? `
                     <div style="margin-bottom:16px;">
                         <a href="${apt.virtualLink}" target="_blank" 
                            style="display:flex;align-items:center;justify-content:center;gap:8px;
