@@ -499,19 +499,6 @@ export async function createStore(bus) {
         type: 'administrative',
         createdBy: 'admin_1',
         createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000
-      },
-      {
-        id: 'msg_test_badge',
-        recipientId: 'admin_1',
-        recipientName: 'Administrador',
-        title: 'Prueba de Notificación Pendiente',
-        content: 'Este es un mensaje de prueba para verificar que el punto rojo y el contador del menú de notificaciones funcionan correctamente.',
-        channel: 'internal',
-        priority: 'high',
-        status: 'pending',
-        type: 'test',
-        createdBy: 'doctor_1',
-        createdAt: Date.now()
       }
     ],
 
@@ -528,19 +515,6 @@ export async function createStore(bus) {
         type: 'appointment_reminder',
         createdBy: 'system',
         createdAt: Date.now() - 12 * 60 * 60 * 1000
-      },
-      {
-        id: 'notif_2',
-        recipientId: 'admin_1',
-        recipientName: 'Administrador',
-        title: 'Alerta: Insumo con stock bajo',
-        content: 'El insumo "Oxígeno (Tanque)" está por debajo del nivel mínimo de stock. Se requiere reabastecimiento urgente.',
-        channel: 'system',
-        priority: 'critical',
-        status: 'pending',
-        type: 'stock_alert',
-        createdBy: 'system',
-        createdAt: Date.now() - 2 * 60 * 60 * 1000
       }
     ],
 

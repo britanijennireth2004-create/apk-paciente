@@ -1,10 +1,11 @@
 /**
- * notifications.js — Panel de Notificaciones (APK / Doctor Mobile)
+ * notifications.js — Panel de Notificaciones (APK / Patient Mobile)
  * Adapta el módulo de comunicaciones de la versión web a móvil:
  *   - Carpetas: Bandeja, Enviados, Recordatorios, Alertas, Borradores, Papelera
  *   - Vistas: lista → detalle → redactar/responder
  *   - Guardar borrador, enviar, marcar leído, eliminar, destacar
  *   - Auto-recordatorios de citas próximas (< 48h)
+ *   - FILTRADO: Pacientes solo ven notificaciones dirigidas específicamente a ellos
  */
 
 // ─── helpers de fecha ─────────────────────────────────────────────────────────
@@ -70,7 +71,8 @@ const FOLDERS = [
 export function mountNotifications(root, { store, user }) {
     if (!root) return;
 
-    const role = user?.role || 'doctor';
+    const role = user?.role || 'patient';
+    const patientId = user?.patientId || user?.id;
 
     const state = {
         folder: 'inbox',
@@ -79,13 +81,11 @@ export function mountNotifications(root, { store, user }) {
         viewingId: null,
         replyTo: null,
         editingDraftId: null,
-        // Para evitar reconstrucción completa del DOM en búsqueda
         searchTimeout: null
     };
 
     let allData = { messages: [], notifications: [], reminders: [], drafts: [] };
     let currentRoot = root;
-    let searchInput = null;
     let isRendering = false;
 
     // ── Cargar datos ──────────────────────────────────────────────────────────
@@ -102,19 +102,21 @@ export function mountNotifications(root, { store, user }) {
         const now = Date.now();
         const in48 = now + 48 * 3600000;
         const existing = new Set(allData.reminders.map(r => r.appointmentId));
+        
         apts.forEach(a => {
+            // Solo generar recordatorios para citas del paciente actual
+            if (a.patientId !== patientId) return;
             if (a.status !== 'scheduled' || existing.has(a.id)) return;
             const t = new Date(a.dateTime).getTime();
             if (t > now && t <= in48) {
-                const p = store.find('patients', a.patientId);
                 const d = store.find('doctors', a.doctorId);
-                if (!p || !d) return;
+                if (!d) return;
                 store.add('reminders', {
                     appointmentId: a.id,
-                    recipientId: user?.doctorId || user?.id,
-                    recipientName: d.name,
+                    recipientId: patientId,
+                    recipientName: user?.name || 'Paciente',
                     title: 'Recordatorio de cita próxima',
-                    content: `Cita con ${p.name} el ${fmtFull(a.dateTime)}.`,
+                    content: `Cita con ${d.name} el ${fmtFull(a.dateTime)}.`,
                     channel: 'internal', priority: 'normal',
                     status: 'pending', type: 'appointment_reminder',
                     createdBy: 'system', createdAt: now
@@ -146,8 +148,31 @@ export function mountNotifications(root, { store, user }) {
             ...allData.reminders.map(r => ({ ...r, _src: 'reminders' })),
             ...allData.drafts.map(d => ({ ...d, _src: 'drafts' }))
         ];
+        
         return all.filter(i => {
+            // ============================================================
+            // FILTRO PARA PACIENTES: Solo ven notificaciones dirigidas a ellos
+            // ============================================================
+            if (role === 'patient') {
+                // Mensajes creados por el mismo usuario (enviados por él)
+                const isFromMe = i.createdBy === user?.id || i.createdBy === patientId;
+                // Mensajes dirigidos específicamente al paciente
+                const isForPatient = i.recipientId === patientId || 
+                                     i.recipientId === user?.id ||
+                                     i.recipientRole === 'patient';
+                
+                // Solo mostrar si cumple alguna de las condiciones
+                return isFromMe || isForPatient;
+            }
+            
+            // ============================================================
+            // FILTRO PARA ADMINISTRADORES: Ven todo
+            // ============================================================
             if (role === 'admin') return true;
+            
+            // ============================================================
+            // FILTRO PARA MÉDICOS Y ENFERMERAS
+            // ============================================================
             if (i.createdBy === user?.id) return true;
             if (i.recipientId === user?.id ||
                 (user?.doctorId && i.recipientId === user.doctorId) ||
@@ -155,6 +180,7 @@ export function mountNotifications(root, { store, user }) {
                 (user?.nurseId && i.recipientId === user.nurseId) ||
                 (user?.receptionistId && i.recipientId === user.receptionistId)) return true;
             if (i.recipientRole === role) return true;
+            
             return false;
         });
     }
@@ -167,6 +193,7 @@ export function mountNotifications(root, { store, user }) {
         else if (state.folder === 'alerts') items = items.filter(i => (i.priority === 'critical' || i.priority === 'high' || i._src === 'notifications') && !i.deleted);
         else if (state.folder === 'trash') items = items.filter(i => i.deleted);
         else if (state.folder === 'drafts') items = items.filter(i => i._src === 'drafts' && !i.deleted);
+        
         if (state.search) {
             const s = state.search.toLowerCase();
             items = items.filter(i =>
@@ -181,6 +208,7 @@ export function mountNotifications(root, { store, user }) {
     function findItem(id) {
         return [...allData.messages, ...allData.notifications, ...allData.reminders, ...allData.drafts].find(i => i.id === id);
     }
+    
     function findSrc(id) {
         for (const src of ['messages', 'notifications', 'reminders', 'drafts'])
             if ((allData[src] || []).find(i => i.id === id)) return src;
@@ -202,12 +230,10 @@ export function mountNotifications(root, { store, user }) {
         const listContainer = currentRoot.querySelector('.notif-list-container');
         
         if (!listContainer) {
-            // Si no existe el contenedor de lista, hacer render completo
             render();
             return;
         }
         
-        // Actualizar solo el contenido de la lista
         if (items.length === 0) {
             listContainer.innerHTML = `
                 <div style="text-align:center;padding:48px 16px;color:var(--neutralSecondary);">
@@ -237,9 +263,7 @@ export function mountNotifications(root, { store, user }) {
             const isUnread = !isDraft &&
                 item.createdBy !== user?.id &&
                 (item.status === 'sent' || item.status === 'pending' || item.status === 'scheduled' || item.status === 'delivered');
-            const sender = state.folder === 'sent' ? `Para: ${item.recipientName || '—'}`
-                : isDraft ? 'Borrador'
-                    : getActorName(item.createdBy);
+            const sender = state.folder === 'sent' ? `Para: ${item.recipientName || '—'}` : isDraft ? 'Borrador' : getActorName(item.createdBy);
             const ac = avatarColor(sender);
             const initial = (sender || 'S').charAt(0).toUpperCase();
             
@@ -293,7 +317,7 @@ export function mountNotifications(root, { store, user }) {
         });
     }
 
-    // ── RENDER PRINCIPAL (solo se ejecuta cuando cambia la vista o carpeta) ──
+    // ── RENDER PRINCIPAL ──────────────────────────────────────────────────────
     function render() {
         if (isRendering) return;
         isRendering = true;
@@ -309,7 +333,6 @@ export function mountNotifications(root, { store, user }) {
             badge.style.display = unread > 0 ? '' : 'none';
         }
 
-        // Guardar el valor actual de búsqueda antes de reconstruir
         const currentSearchValue = state.search;
         
         currentRoot.innerHTML = '';
@@ -368,7 +391,6 @@ export function mountNotifications(root, { store, user }) {
 
         bindEvents();
         
-        // Restaurar el valor del input de búsqueda y configurar el listener
         const searchInputEl = currentRoot.querySelector('#notif-search-input');
         if (searchInputEl) {
             searchInputEl.value = state.search;
@@ -379,20 +401,16 @@ export function mountNotifications(root, { store, user }) {
     }
     
     function setupSearchListener(inputEl) {
-        // Remover listener anterior si existe
         if (inputEl._listener) {
             inputEl.removeEventListener('input', inputEl._listener);
         }
         
         const handler = (e) => {
-            // Actualizar el estado de búsqueda
             const newValue = e.target.value;
             state.search = newValue;
             
-            // Usar debounce para no actualizar demasiado rápido
             if (state.searchTimeout) clearTimeout(state.searchTimeout);
             state.searchTimeout = setTimeout(() => {
-                // Actualizar solo la lista sin reconstruir todo el módulo
                 updateListOnly();
             }, 300);
         };
@@ -505,6 +523,8 @@ export function mountNotifications(root, { store, user }) {
             initSubj = 'Re: ' + (replyTo.title || '');
         }
 
+        const doctors = store.get('doctors') || [];
+        const nurses = store.get('nurses') || [];
         const patients = store.get('patients') || [];
         const allUsers = store.get('users') || [];
 
@@ -519,7 +539,7 @@ export function mountNotifications(root, { store, user }) {
                     <div style="font-size:0.7rem;font-weight:700;color:var(--neutralPrimary);text-transform:uppercase;letter-spacing:0.03em;">Mensajería Hospitalaria</div>
                     <div style="font-size:0.9rem;font-weight:800;color:var(--neutralDark);">${isEditing ? 'Editar Borrador' : replyTo ? 'Responder Mensaje' : 'Redactar Nuevo'}</div>
                 </div>
-            </div >
+            </div>
 
             <form id="compose-form" class="compose-form-container">
 
@@ -538,6 +558,13 @@ export function mountNotifications(root, { store, user }) {
                                 <option value="role_admin"        ${initTo === 'role_admin' ? 'selected' : ''}>Alta Administración</option>
                                 <option value="role_doctor"       ${initTo === 'role_doctor' ? 'selected' : ''}>Gremio Médico</option>
                                 <option value="role_nurse"        ${initTo === 'role_nurse' ? 'selected' : ''}>Enfermería</option>
+                                <option value="role_receptionist" ${initTo === 'role_receptionist' ? 'selected' : ''}>Recepción</option>
+                            </optgroup>
+                            <optgroup label="Médicos">
+                                ${doctors.map(d => `<option value="${d.id}" ${d.id === initTo ? 'selected' : ''}>Dr/a. ${escapeHtml(d.name)}</option>`).join('')}
+                            </optgroup>
+                            <optgroup label="Enfermeras">
+                                ${nurses.map(n => `<option value="${n.id}" ${n.id === initTo ? 'selected' : ''}>Lic. ${escapeHtml(n.name)}</option>`).join('')}
                             </optgroup>
                             <optgroup label="Pacientes Registrados">
                                 ${patients.map(p => `<option value="${p.id}" ${p.id === initTo ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
@@ -607,7 +634,6 @@ export function mountNotifications(root, { store, user }) {
         if (!src || !item) return;
         if (item.status !== 'read' && item.createdBy !== user?.id) {
             store.update(src, id, { status: 'read' });
-            // Actualizar badge después de marcar como leído
             const unread = unreadCount();
             const badge = document.getElementById('notif-badge');
             if (badge) {

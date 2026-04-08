@@ -1002,4 +1002,3 @@ function openDetailModal(apt, store, onFilterChange, currentFilter) {
         onFilterChange(currentFilter);
     });
 }
-

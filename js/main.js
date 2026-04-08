@@ -5,7 +5,6 @@
 import { createBus } from './core/bus.js';
 import { createStore } from './core/store.js';
 import * as UI from './ui.js';
-import { mountNewAppointmentForm, renderMyAppointmentsView } from './appointments.js';
 import { mountNotifications } from './notifications.js';
 import { mountProfile } from './profile.js';
 import { mountClinical } from './clinical.js';
@@ -231,34 +230,46 @@ class HospitalApp {
             // Limpiar el contenedor #app si existe
             const appElement = document.getElementById('app');
             if (appElement) {
-                appElement.innerHTML = '';
-                // Restaurar la estructura original
-                const originalContainer = document.querySelector('.app-container');
-                if (originalContainer && originalContainer.parentNode === appElement) {
-                    appElement.appendChild(originalContainer);
+                const appContainer = document.querySelector('.app-container');
+                if (appContainer) {
+                    appContainer.style.display = 'none';
                 }
             }
             
             this.currentView = 'login';
             this.cleanupUI();
             this.clearLoginForm();
+            
             await this.showSplash(true);
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const appContainer = document.querySelector('.app-container');
+            if (appContainer) {
+                appContainer.style.display = 'flex';
+            }
+            
             this.updateChromeVisibility();
-            this.navigate('login');
+            
+            // Asegurar que la vista login esté activa
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.remove('active');
+            });
+            const loginView = document.getElementById('view-login');
+            if (loginView) loginView.classList.add('active');
+            
             await this.showSplash(false);
+            
+            document.querySelectorAll('.hospital-modal-overlay, .modal-overlay, .selection-sheet-overlay, #apt-detail-modal')
+                .forEach(modal => modal.remove());
             
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
             if (sidebar) sidebar.classList.remove('active');
             if (overlay) overlay.classList.remove('active');
             
-            document.querySelectorAll('.hospital-modal-overlay, .modal-overlay, .selection-sheet-overlay, #apt-detail-modal')
-                .forEach(modal => modal.remove());
-            
             // Asegurar que el app-container sea visible
-            const appContainer = document.querySelector('.app-container');
-            if (appContainer) appContainer.style.display = 'flex';
+            const appContainerFinal = document.querySelector('.app-container');
+            if (appContainerFinal) appContainerFinal.style.display = 'flex';
         }
     }
 
@@ -626,21 +637,17 @@ class HospitalApp {
         
         this.isRegistering = true;
         
-        // Limpiar modales existentes
         document.querySelectorAll('.hospital-modal-overlay, .modal-overlay, .selection-sheet-overlay, #apt-detail-modal')
             .forEach(modal => modal.remove());
         
-        // Cerrar sidebar si está abierto
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('overlay');
         if (sidebar) sidebar.classList.remove('active');
         if (overlay) overlay.classList.remove('active');
         
-        // Ocultar el app-container
         const appContainer = document.querySelector('.app-container');
         if (appContainer) appContainer.style.display = 'none';
         
-        // Obtener o crear el contenedor #app
         let appElement = document.getElementById('app');
         if (!appElement) {
             appElement = document.createElement('div');
@@ -648,7 +655,6 @@ class HospitalApp {
             document.body.insertBefore(appElement, document.body.firstChild);
         }
         
-        // Mostrar loading
         appElement.innerHTML = `
             <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e2e8f0,#f1f5f9);">
                 <div style="text-align:center;">
@@ -660,10 +666,8 @@ class HospitalApp {
         `;
         
         try {
-            // Importar dinámicamente el módulo de registro
             const registerModule = await import('./register.js');
             
-            // Limpiar y preparar el contenedor
             appElement.innerHTML = '<div id="register-root" style="min-height:100vh;"></div>';
             const registerRoot = document.getElementById('register-root');
             
@@ -671,25 +675,20 @@ class HospitalApp {
                 throw new Error('No se pudo crear el contenedor de registro');
             }
             
-            // Montar el formulario de registro
             this.registerModule = registerModule.mountRegister(registerRoot, {
                 store: this.store,
                 onSuccess: (user) => {
                     if (user) {
-                        // Guardar sesión y recargar
                         localStorage.setItem('hospital_patient', JSON.stringify({
                             id: user.id,
                             name: user.name,
                             dni: user.dni,
                             username: user.username
                         }));
-                        // Recargar la página para reiniciar el estado
                         window.location.reload();
                     } else {
-                        // Canceló el registro, volver al login
                         if (appContainer) appContainer.style.display = 'flex';
                         appElement.innerHTML = '';
-                        // Restaurar el app-container
                         if (appContainer && appContainer.parentNode !== appElement) {
                             appElement.appendChild(appContainer);
                         }
@@ -701,7 +700,6 @@ class HospitalApp {
             
         } catch (error) {
             console.error('Error cargando módulo de registro:', error);
-            // Mostrar error y volver al login
             appElement.innerHTML = `
                 <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e2e8f0,#f1f5f9);">
                     <div style="background:#fff;border-radius:16px;padding:24px;text-align:center;max-width:300px;">
@@ -756,7 +754,6 @@ class HospitalApp {
             check: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
         };
         
-        // Evento para recuperar contraseña
         document.body.addEventListener('click', (e) => {
             const recoverLink = e.target.closest('#recover-link');
             if (recoverLink) {
@@ -788,7 +785,6 @@ class HospitalApp {
             }
         });
         
-        // Evento para el ojo de la contraseña
         document.body.addEventListener('click', (e) => {
             const eyeBtn = e.target.closest('#eye-login');
             if (eyeBtn) {
@@ -804,7 +800,6 @@ class HospitalApp {
             }
         });
         
-        // Evento para el formulario de login
         document.body.addEventListener('submit', async (e) => {
             const form = e.target.closest('#login-form');
             if (!form) return;
@@ -1143,24 +1138,209 @@ class HospitalApp {
         });
     }
 
+    // ==================== NUEVA CITA (Paciente) ====================
     renderNewAppointment() {
         const doctors = this.store.get('doctors') || [];
-        const patients = this.store.get('patients') || [];
         const areas = this.store.get('areas') || [];
+        const patient = this.patientRecord;
         
-        mountNewAppointmentForm({
-            store: this.store,
-            patientRecord: this.patientRecord,
-            user: this.user,
-            doctors: doctors,
-            patients: patients,
-            areas: areas,
-            isPatientPortal: true,
-            onSave: async (newApt) => {
-                newApt.patientId = this.patientRecord.id;
-                newApt.createdBy = this.user.id;
-                newApt.createdAt = Date.now();
-                newApt.status = 'scheduled';
+        const container = document.getElementById('new-appointment-form-container');
+        if (!container) return;
+        
+        const today = new Date().toISOString().split('T')[0];
+        
+        container.innerHTML = `
+            <form id="new-apt-form" autocomplete="off" novalidate>
+                <!-- INFORMACIÓN DEL PACIENTE (precargada y solo lectura) -->
+                <div class="apt-form-section">
+                    <div class="apt-section-header forest">
+                        <i class="fa-solid fa-hospital-user"></i> MIS DATOS
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre del Paciente</label>
+                        <input type="text" value="${patient.name}" readonly style="background:#f1f5f9;">
+                    </div>
+                    <div class="form-group">
+                        <label>Cédula de Identidad</label>
+                        <input type="text" value="${patient.docType || 'V'}-${patient.dni || ''}" readonly style="background:#f1f5f9;">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono de Contacto</label>
+                        <input type="text" value="${patient.phone || ''}" readonly style="background:#f1f5f9;">
+                    </div>
+                    <input type="hidden" id="apt-patient-id" name="patientId" value="${patient.id}">
+                </div>
+
+                <!-- MÉDICO Y ÁREA -->
+                <div class="apt-form-section">
+                    <div class="apt-section-header" style="background:#f0f9ff;color:#0369a1;">
+                        <i class="fa-solid fa-user-doctor"></i> SELECCIONAR MÉDICO
+                    </div>
+                    <div class="form-group">
+                        <label>Médico Tratante *</label>
+                        <select id="apt-doctor" name="doctorId" required>
+                            <option value="">— Seleccionar médico —</option>
+                            ${doctors.filter(d => d.isActive !== false).map(d => `<option value="${d.id}">${d.name} • ${d.specialty || ''}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Área / Servicio</label>
+                        <select id="apt-area" name="areaId">
+                            <option value="">— Seleccionar área —</option>
+                            ${areas.filter(a => a.isActive !== false).map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- MODALIDAD -->
+                <div class="apt-form-section">
+                    <div class="apt-section-header purple">
+                        <i class="fa-solid fa-video"></i> MODALIDAD
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Consulta *</label>
+                        <select id="apt-modality" name="modality">
+                            <option value="presential">Presencial en Clínica</option>
+                            <option value="virtual">Virtual / Telemedicina</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="apt-link-group" style="display:none;">
+                        <label>Enlace de Reunión Virtual</label>
+                        <input type="url" name="virtualLink" id="apt-virtual-link" placeholder="https://meet.google.com/...">
+                    </div>
+                </div>
+
+                <!-- FECHA Y HORA -->
+                <div class="apt-form-section">
+                    <div class="apt-section-header gold">
+                        <i class="fa-regular fa-calendar"></i> FECHA Y HORA
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha *</label>
+                        <input type="date" id="apt-date" name="date" min="${today}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Horario Disponible *</label>
+                        <select id="apt-time" name="time" required>
+                            <option value="">Seleccione médico y fecha primero</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Duración *</label>
+                        <select name="duration">
+                            <option value="15">15 minutos</option>
+                            <option value="30" selected>30 minutos</option>
+                            <option value="45">45 minutos</option>
+                            <option value="60">60 minutos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- INFORMACIÓN ADICIONAL -->
+                <div class="apt-form-section">
+                    <div class="apt-section-header olive">
+                        <i class="fa-solid fa-clipboard-list"></i> MOTIVO DE LA CONSULTA
+                    </div>
+                    <div class="form-group">
+                        <label>Motivo de la Consulta *</label>
+                        <textarea name="reason" id="apt-reason" rows="3" placeholder="Describa brevemente el motivo de su consulta..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas Adicionales</label>
+                        <textarea name="notes" rows="2" placeholder="Observaciones adicionales, síntomas, etc..."></textarea>
+                    </div>
+                </div>
+
+                <div id="apt-global-error" style="display:none;background:#fee2e2;color:var(--red);border-radius:8px;padding:12px;margin-bottom:12px;"></div>
+
+                <button type="submit" class="btn-save" style="margin-bottom:20px;">
+                    <i class="fa-solid fa-calendar-check"></i> Solicitar Cita
+                </button>
+            </form>
+        `;
+        
+        this.setupAppointmentForm(doctors);
+    }
+    
+    setupAppointmentForm(doctors) {
+        const doctorSelect = document.getElementById('apt-doctor');
+        const dateInput = document.getElementById('apt-date');
+        const timeSelect = document.getElementById('apt-time');
+        const modalitySelect = document.getElementById('apt-modality');
+        const linkGroup = document.getElementById('apt-link-group');
+        const form = document.getElementById('new-apt-form');
+        const errBox = document.getElementById('apt-global-error');
+        
+        if (modalitySelect) {
+            modalitySelect.addEventListener('change', () => {
+                if (linkGroup) {
+                    linkGroup.style.display = modalitySelect.value === 'virtual' ? '' : 'none';
+                }
+            });
+        }
+        
+        function loadSlots() {
+            const doctorId = doctorSelect?.value;
+            const date = dateInput?.value;
+            if (!doctorId || !date || !timeSelect) {
+                if (timeSelect) timeSelect.innerHTML = '<option value="">Seleccione médico y fecha primero</option>';
+                return;
+            }
+            
+            const doctor = doctors.find(d => d.id === doctorId);
+            if (!doctor) return;
+            
+            const startH = doctor.workStartHour ?? 8;
+            const endH = doctor.workEndHour ?? 17;
+            const slots = [];
+            for (let h = startH; h < endH; h++) {
+                slots.push(`${String(h).padStart(2, '0')}:00`);
+                slots.push(`${String(h).padStart(2, '0')}:30`);
+            }
+            
+            timeSelect.innerHTML = '<option value="">— Seleccionar horario —</option>' +
+                slots.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+        
+        if (doctorSelect) doctorSelect.addEventListener('change', loadSlots);
+        if (dateInput) dateInput.addEventListener('change', loadSlots);
+        
+        if (form) {
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const fd = new FormData(form);
+                const data = Object.fromEntries(fd);
+                
+                if (!data.doctorId) {
+                    if (errBox) {
+                        errBox.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Seleccione un médico';
+                        errBox.style.display = '';
+                    }
+                    return;
+                }
+                
+                if (!data.reason) {
+                    if (errBox) {
+                        errBox.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Describa el motivo de la consulta';
+                        errBox.style.display = '';
+                    }
+                    return;
+                }
+                
+                const newApt = {
+                    patientId: this.patientRecord.id,
+                    doctorId: data.doctorId,
+                    areaId: data.areaId || '',
+                    dateTime: new Date(`${data.date}T${data.time}`).getTime(),
+                    duration: parseInt(data.duration) || 30,
+                    reason: data.reason || '',
+                    notes: data.notes || '',
+                    modality: data.modality || 'presential',
+                    virtualLink: data.modality === 'virtual' ? (data.virtualLink || '') : '',
+                    status: 'scheduled',
+                    createdBy: this.user.id,
+                    createdAt: Date.now()
+                };
                 
                 this.store.add('appointments', newApt);
                 const dt = new Date(newApt.dateTime);
@@ -1168,10 +1348,11 @@ class HospitalApp {
                 const timeStr = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                 await UI.hospitalAlert(`Cita agendada con éxito para el ${dateStr} a las ${timeStr}.`, 'success');
                 this.navigate('my-appointments');
-            }
-        });
+            };
+        }
     }
 
+    // ==================== MIS CITAS ====================
     renderMyAppointments(filter = 'all') {
         const all = this.store.get('appointments');
         const mine = all
