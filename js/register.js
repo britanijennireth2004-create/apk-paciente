@@ -143,41 +143,41 @@ export function mountRegister(root, { store, onSuccess }) {
 
     function render() {
         root.innerHTML = `
-            <div style="min-height:100vh;background:linear-gradient(135deg,#e2e8f0,#f1f5f9);padding:20px;">
-                <div style="max-width:500px;margin:0 auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.1);">
-                    <div style="background:linear-gradient(135deg,var(--themeDarker),var(--themePrimary));padding:20px;text-align:center;">
-                        <h2 style="margin:0;color:#fff;font-size:1.3rem;">Registro de Paciente</h2>
-                        <p style="margin:5px 0 0;color:rgba(255,255,255,0.9);font-size:0.8rem;">Complete sus datos para crear su cuenta</p>
+            <div style="min-height:100vh;background:linear-gradient(135deg,#e2e8f0,#f1f5f9);">
+                <div style="max-width:500px;margin:0 auto;background:#fff;border-radius:0;min-height:100vh;display:flex;flex-direction:column;">
+                    <div style="background:linear-gradient(135deg,var(--themeDarker),var(--themePrimary));padding:20px 16px;text-align:center;">
+                        <h2 style="margin:0;color:#fff;font-size:1.2rem;">Registro de Paciente</h2>
+                        <p style="margin:5px 0 0;color:rgba(255,255,255,0.9);font-size:0.75rem;">Complete sus datos para crear su cuenta</p>
                     </div>
                     
-                    <div id="register-form-container" style="padding:20px;">
+                    <div id="register-form-container" style="padding:20px 16px;flex:1;overflow-y:auto;max-height:calc(100vh - 80px);">
                         <form id="register-form">
                             <!-- Datos Personales -->
-                            <div style="margin-bottom:16px;">
-                                <h3 style="font-size:0.75rem;color:var(--themePrimary);margin-bottom:12px;">DATOS PERSONALES</h3>
-                                <div style="margin-bottom:12px;">
-                                    <input type="text" id="reg-name" class="login-input" placeholder="Nombres completos *" style="width:100%;">
+                            <div style="margin-bottom:20px;">
+                                <h3 style="font-size:0.7rem;color:var(--themePrimary);margin-bottom:12px;font-weight:700;letter-spacing:0.5px;">DATOS PERSONALES</h3>
+                                <div style="margin-bottom:14px;">
+                                    <input type="text" id="reg-name" class="login-input" placeholder="Nombres completos *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
                                 </div>
-                                <div style="margin-bottom:12px;">
-                                    <input type="text" id="reg-lastname" class="login-input" placeholder="Apellidos completos *" style="width:100%;">
+                                <div style="margin-bottom:14px;">
+                                    <input type="text" id="reg-lastname" class="login-input" placeholder="Apellidos completos *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
                                 </div>
-                                <div style="display:flex;gap:10px;margin-bottom:12px;">
-                                    <select id="reg-doctype" class="login-input" style="width:80px;">
+                                <div style="display:flex;gap:10px;margin-bottom:14px;">
+                                    <select id="reg-doctype" class="login-input" style="width:70px;padding:12px 8px;font-size:0.9rem;">
                                         <option value="V">V</option>
                                         <option value="E">E</option>
                                         <option value="P">P</option>
                                     </select>
-                                    <input type="text" id="reg-docnumber" class="login-input" placeholder="Número de documento *" style="flex:1;">
+                                    <input type="text" id="reg-docnumber" class="login-input" placeholder="Número de documento *" style="flex:1;padding:12px 14px;font-size:0.9rem;">
                                 </div>
-                                <div class="error-msg" data-for="reg-docnumber" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
-                                <div style="margin-bottom:12px;">
-                                    <input type="date" id="reg-birthdate" class="login-input" style="width:100%;" max="${new Date().toISOString().split('T')[0]}">
+                                <div class="error-msg" data-for="reg-docnumber" style="color:#dc2626;font-size:0.7rem;margin-top:-8px;margin-bottom:8px;"></div>
+                                <div style="margin-bottom:14px;">
+                                    <input type="date" id="reg-birthdate" class="login-input" style="width:100%;padding:12px 14px;font-size:0.9rem;" max="${new Date().toISOString().split('T')[0]}">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
                                 </div>
-                                <div style="margin-bottom:12px;">
-                                    <select id="reg-gender" class="login-input" style="width:100%;">
+                                <div style="margin-bottom:14px;">
+                                    <select id="reg-gender" class="login-input" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                         <option value="">Sexo *</option>
                                         <option value="Masculino">Masculino</option>
                                         <option value="Femenino">Femenino</option>
@@ -188,50 +188,50 @@ export function mountRegister(root, { store, onSuccess }) {
                             </div>
 
                             <!-- Contacto -->
-                            <div style="margin-bottom:16px;">
-                                <h3 style="font-size:0.75rem;color:var(--themePrimary);margin-bottom:12px;">CONTACTO Y ACCESO</h3>
-                                <div style="margin-bottom:12px;">
-                                    <input type="tel" id="reg-phone" class="login-input" placeholder="Teléfono (11 dígitos) *" style="width:100%;">
+                            <div style="margin-bottom:20px;">
+                                <h3 style="font-size:0.7rem;color:var(--themePrimary);margin-bottom:12px;font-weight:700;letter-spacing:0.5px;">CONTACTO Y ACCESO</h3>
+                                <div style="margin-bottom:14px;">
+                                    <input type="tel" id="reg-phone" class="login-input" placeholder="Teléfono (11 dígitos) *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
-                                    <div style="font-size:0.65rem;color:#64748b;margin-top:4px;">Ejemplo: 04121234567</div>
+                                    <div style="font-size:0.6rem;color:#64748b;margin-top:4px;">Ejemplo: 04121234567</div>
                                 </div>
-                                <div style="margin-bottom:12px;">
-                                    <input type="email" id="reg-email" class="login-input" placeholder="Correo electrónico *" style="width:100%;">
-                                    <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
-                                </div>
-                                <div style="margin-bottom:12px;">
-                                    <input type="text" id="reg-username" class="login-input" placeholder="Nombre de usuario *" style="width:100%;">
+                                <div style="margin-bottom:14px;">
+                                    <input type="email" id="reg-email" class="login-input" placeholder="Correo electrónico *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
                                 </div>
-                                <div style="margin-bottom:12px;">
-                                    <input type="password" id="reg-password" class="login-input" placeholder="Contraseña *" style="width:100%;">
+                                <div style="margin-bottom:14px;">
+                                    <input type="text" id="reg-username" class="login-input" placeholder="Nombre de usuario *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
-                                    <div id="password-reqs" style="font-size:0.65rem;margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
+                                </div>
+                                <div style="margin-bottom:14px;">
+                                    <input type="password" id="reg-password" class="login-input" placeholder="Contraseña *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
+                                    <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
+                                    <div id="password-reqs" style="font-size:0.6rem;margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
                                         <span id="req-length">✗ 8+ caracteres</span>
                                         <span id="req-upper">✗ Mayúscula</span>
                                         <span id="req-number">✗ Número</span>
                                         <span id="req-special">✗ Especial (@#$%^&*!)</span>
                                     </div>
                                 </div>
-                                <div style="margin-bottom:12px;">
-                                    <input type="password" id="reg-confirm" class="login-input" placeholder="Confirmar contraseña *" style="width:100%;">
+                                <div style="margin-bottom:14px;">
+                                    <input type="password" id="reg-confirm" class="login-input" placeholder="Confirmar contraseña *" style="width:100%;padding:12px 14px;font-size:0.9rem;">
                                     <div class="error-msg" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
                                 </div>
                             </div>
 
                             <!-- Consentimiento -->
-                            <div style="margin-bottom:20px;">
+                            <div style="margin-bottom:24px;">
                                 <label style="display:flex;align-items:center;gap:8px;font-size:0.75rem;">
-                                    <input type="checkbox" id="reg-consent">
+                                    <input type="checkbox" id="reg-consent" style="width:18px;height:18px;">
                                     Acepto el <a href="#" id="show-terms" style="color:var(--themePrimary);">consentimiento informado</a>
                                 </label>
                                 <div class="error-msg" data-for="reg-consent" style="color:#dc2626;font-size:0.7rem;margin-top:4px;"></div>
                             </div>
 
                             <!-- Botones -->
-                            <div style="display:flex;gap:12px;">
-                                <button type="button" id="cancel-register" class="btn-outline" style="flex:1;padding:12px;border-radius:12px;font-weight:600;">Cancelar</button>
-                                <button type="submit" id="register-btn" class="btn-primary" style="flex:2;padding:12px;border-radius:12px;font-weight:700;background:var(--themePrimary);color:#fff;border:none;">Registrarse</button>
+                            <div style="display:flex;gap:12px;margin-bottom:30px;">
+                                <button type="button" id="cancel-register" class="btn-outline" style="flex:1;padding:14px;border-radius:12px;font-weight:600;font-size:0.9rem;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;cursor:pointer;">Cancelar</button>
+                                <button type="submit" id="register-btn" class="btn-primary" style="flex:2;padding:14px;border-radius:12px;font-weight:700;font-size:0.9rem;background:var(--themePrimary);color:#fff;border:none;cursor:pointer;">Registrarse</button>
                             </div>
                         </form>
                     </div>

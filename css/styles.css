@@ -2512,3 +2512,159 @@ select:disabled {
     display: block;
     margin-top: 2px;
 }
+
+/* ==========================================================================
+   REGISTER PAGE - MEJORAS PARA MÓVIL
+   ========================================================================== */
+
+/* Contenedor principal del registro - sin márgenes */
+#register-root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #e2e8f0, #f1f5f9);
+}
+
+/* Contenedor del formulario con scroll suave */
+#register-form-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto !important;
+    scroll-behavior: smooth;
+}
+
+/* Estilos para inputs en registro */
+#register-form-container input,
+#register-form-container select {
+    font-size: 16px !important; /* Previene zoom en iOS */
+    border-radius: 12px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    transition: all 0.2s ease;
+}
+
+#register-form-container input:focus,
+#register-form-container select:focus {
+    border-color: var(--themePrimary) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(0, 59, 105, 0.1) !important;
+}
+
+/* Ajuste del select de tipo de documento */
+#reg-doctype {
+    width: 70px !important;
+    min-width: 70px !important;
+    background-position: right 8px center !important;
+    padding: 12px 20px 12px 8px !important;
+}
+
+/* Campo de número de documento */
+#reg-docnumber {
+    flex: 1 !important;
+}
+
+/* Asegurar que el formulario sea completamente scrolleable */
+#register-root > div {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mejoras para botones en móvil */
+#register-btn, 
+#cancel-register {
+    transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+#register-btn:active,
+#cancel-register:active {
+    transform: scale(0.97);
+}
+
+/* Ajustes de espaciado para móviles pequeños */
+@media (max-width: 380px) {
+    #register-form-container {
+        padding: 16px 12px !important;
+    }
+    
+    #register-form-container input,
+    #register-form-container select {
+        padding: 10px 12px !important;
+    }
+    
+    #reg-doctype {
+        width: 60px !important;
+        min-width: 60px !important;
+        padding: 10px 16px 10px 6px !important;
+    }
+}
+
+/* Quitar el borde redondeado inferior para que ocupe toda la pantalla */
+#register-root > div > div {
+    border-radius: 0 !important;
+}
+
+/* Estilo para el contenedor de scroll */
+#register-form-container::-webkit-scrollbar {
+    width: 3px;
+}
+
+#register-form-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+#register-form-container::-webkit-scrollbar-thumb {
+    background: var(--themeTertiary);
+    border-radius: 10px;
+}
+
+/* Asegurar que el header ocupe todo el ancho */
+#register-root > div > div:first-child {
+    width: 100%;
+    border-radius: 0;
+}
+
+/* Mejoras para el contenedor principal */
+.app-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Asegurar que las vistas ocupen todo el espacio */
+.view {
+    min-height: 100%;
+    height: auto;
+}
+
+/* Mejoras para el scroll en general */
+.main-content {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Evitar que el footer nav interfiera con el scroll */
+.bottom-nav {
+    pointer-events: auto;
+}
+
+/* Ajustes para que el registro ocupe toda la pantalla sin márgenes */
+body:has(#register-root) {
+    overflow: hidden;
+}
+
+#register-root {
+    animation: registerFadeIn 0.3s ease;
+}
+
+@keyframes registerFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
