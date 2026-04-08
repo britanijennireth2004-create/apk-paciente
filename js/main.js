@@ -228,6 +228,17 @@ class HospitalApp {
             this.user = null;
             this.patientRecord = null;
             
+            // Limpiar el contenedor #app si existe
+            const appElement = document.getElementById('app');
+            if (appElement) {
+                appElement.innerHTML = '';
+                // Restaurar la estructura original
+                const originalContainer = document.querySelector('.app-container');
+                if (originalContainer && originalContainer.parentNode === appElement) {
+                    appElement.appendChild(originalContainer);
+                }
+            }
+            
             this.currentView = 'login';
             this.cleanupUI();
             this.clearLoginForm();
@@ -244,6 +255,10 @@ class HospitalApp {
             
             document.querySelectorAll('.hospital-modal-overlay, .modal-overlay, .selection-sheet-overlay, #apt-detail-modal')
                 .forEach(modal => modal.remove());
+            
+            // Asegurar que el app-container sea visible
+            const appContainer = document.querySelector('.app-container');
+            if (appContainer) appContainer.style.display = 'flex';
         }
     }
 
@@ -611,23 +626,29 @@ class HospitalApp {
         
         this.isRegistering = true;
         
+        // Limpiar modales existentes
         document.querySelectorAll('.hospital-modal-overlay, .modal-overlay, .selection-sheet-overlay, #apt-detail-modal')
             .forEach(modal => modal.remove());
         
+        // Cerrar sidebar si está abierto
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('overlay');
         if (sidebar) sidebar.classList.remove('active');
         if (overlay) overlay.classList.remove('active');
         
+        // Ocultar el app-container
         const appContainer = document.querySelector('.app-container');
         if (appContainer) appContainer.style.display = 'none';
         
-        const appElement = document.getElementById('app');
+        // Obtener o crear el contenedor #app
+        let appElement = document.getElementById('app');
         if (!appElement) {
-            this.isRegistering = false;
-            return;
+            appElement = document.createElement('div');
+            appElement.id = 'app';
+            document.body.insertBefore(appElement, document.body.firstChild);
         }
         
+        // Mostrar loading
         appElement.innerHTML = `
             <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e2e8f0,#f1f5f9);">
                 <div style="text-align:center;">
@@ -639,25 +660,39 @@ class HospitalApp {
         `;
         
         try {
+            // Importar dinámicamente el módulo de registro
             const registerModule = await import('./register.js');
             
+            // Limpiar y preparar el contenedor
             appElement.innerHTML = '<div id="register-root" style="min-height:100vh;"></div>';
             const registerRoot = document.getElementById('register-root');
             
+            if (!registerRoot) {
+                throw new Error('No se pudo crear el contenedor de registro');
+            }
+            
+            // Montar el formulario de registro
             this.registerModule = registerModule.mountRegister(registerRoot, {
                 store: this.store,
                 onSuccess: (user) => {
                     if (user) {
+                        // Guardar sesión y recargar
                         localStorage.setItem('hospital_patient', JSON.stringify({
                             id: user.id,
                             name: user.name,
                             dni: user.dni,
                             username: user.username
                         }));
-                        location.reload();
+                        // Recargar la página para reiniciar el estado
+                        window.location.reload();
                     } else {
+                        // Canceló el registro, volver al login
                         if (appContainer) appContainer.style.display = 'flex';
                         appElement.innerHTML = '';
+                        // Restaurar el app-container
+                        if (appContainer && appContainer.parentNode !== appElement) {
+                            appElement.appendChild(appContainer);
+                        }
                         this.isRegistering = false;
                         this.navigate('login');
                     }
@@ -666,11 +701,19 @@ class HospitalApp {
             
         } catch (error) {
             console.error('Error cargando módulo de registro:', error);
-            if (appContainer) appContainer.style.display = 'flex';
-            appElement.innerHTML = '';
-            await UI.hospitalAlert('Error al cargar la página de registro. Intente de nuevo.', 'error');
-            this.isRegistering = false;
-            this.navigate('login');
+            // Mostrar error y volver al login
+            appElement.innerHTML = `
+                <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e2e8f0,#f1f5f9);">
+                    <div style="background:#fff;border-radius:16px;padding:24px;text-align:center;max-width:300px;">
+                        <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#dc2626;margin-bottom:12px;"></i>
+                        <h3 style="margin:0 0 8px;">Error al cargar</h3>
+                        <p style="color:#64748b;margin-bottom:16px;">No se pudo cargar la página de registro</p>
+                        <button onclick="window.location.reload()" class="btn-primary" style="background:var(--themePrimary);border:none;padding:10px 20px;border-radius:12px;color:#fff;cursor:pointer;">
+                            Reintentar
+                        </button>
+                    </div>
+                </div>
+            `;
         } finally {
             this.isRegistering = false;
         }

@@ -153,247 +153,250 @@
         <p>Cargando Portal del Paciente...</p>
     </div>
 
-    <div class="app-container" style="display: none;">
-        <!-- Header Section -->
-        <header class="header">
-            <div class="header-top">
-                <button class="menu-toggle" id="menu-toggle">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-                <div class="profile-section">
-                    <div class="profile-img" id="header-patient-img"></div>
-                    <div>
-                        <div class="greeting" id="greeting-text">Hola,</div>
-                        <div class="doctor-name" id="header-patient-name">Paciente</div>
+    <!-- Contenedor principal #app para manejar vistas dinámicas -->
+    <div id="app">
+        <div class="app-container" style="display: none;">
+            <!-- Header Section -->
+            <header class="header">
+                <div class="header-top">
+                    <button class="menu-toggle" id="menu-toggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="profile-section">
+                        <div class="profile-img" id="header-patient-img"></div>
+                        <div>
+                            <div class="greeting" id="greeting-text">Hola,</div>
+                            <div class="doctor-name" id="header-patient-name">Paciente</div>
+                        </div>
                     </div>
+                    <button class="notification-btn" id="notif-btn">
+                        <i class="fa-regular fa-bell"></i>
+                        <div class="badge" id="notif-badge"></div>
+                    </button>
                 </div>
-                <button class="notification-btn" id="notif-btn">
-                    <i class="fa-regular fa-bell"></i>
-                    <div class="badge" id="notif-badge"></div>
-                </button>
-            </div>
-        </header>
+            </header>
 
-        <!-- Stats Bar (Paciente) -->
-        <div id="global-stats" class="stats-container">
-            <div class="stat-item">
-                <div class="stat-val" id="stat-total">0</div>
-                <div class="stat-label">Mis Citas</div>
+            <!-- Stats Bar (Paciente) -->
+            <div id="global-stats" class="stats-container">
+                <div class="stat-item">
+                    <div class="stat-val" id="stat-total">0</div>
+                    <div class="stat-label">Mis Citas</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val" style="color: var(--warning)" id="stat-pending">0</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val" style="color: var(--green)" id="stat-done">0</div>
+                    <div class="stat-label">Completadas</div>
+                </div>
             </div>
-            <div class="stat-item">
-                <div class="stat-val" style="color: var(--warning)" id="stat-pending">0</div>
-                <div class="stat-label">Pendientes</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-val" style="color: var(--green)" id="stat-done">0</div>
-                <div class="stat-label">Completadas</div>
-            </div>
-        </div>
 
-        <!-- Dynamic Content Area -->
-        <div class="main-content" id="main-scroll">
+            <!-- Dynamic Content Area -->
+            <div class="main-content" id="main-scroll">
 
-            <!-- VISTA: LOGIN -->
-            <div id="view-login" class="view active">
-                <div class="login-page">
-                    <div class="login-card">
-                        <div class="login-form-panel" style="width: 100%;">
-                            <img src="img/logotipo.png" alt="Logo HUMNT"
-                                style="width: 80px; margin-bottom: 0.75rem; display: block;" />
-                            <h1 class="login-title">Hospital Universitario Manuel Núñez Tovar</h1>
-                            <p class="login-subtitle">Sistema de Gestión de Citas Médicas</p>
+                <!-- VISTA: LOGIN -->
+                <div id="view-login" class="view active">
+                    <div class="login-page">
+                        <div class="login-card">
+                            <div class="login-form-panel" style="width: 100%;">
+                                <img src="img/logotipo.png" alt="Logo HUMNT"
+                                    style="width: 80px; margin-bottom: 0.75rem; display: block;" />
+                                <h1 class="login-title">Hospital Universitario Manuel Núñez Tovar</h1>
+                                <p class="login-subtitle">Sistema de Gestión de Citas Médicas</p>
 
-                            <form id="login-form" class="login-form" autocomplete="off">
-                                <div class="login-field">
-                                    <label class="login-label" for="login-username">Usuario</label>
-                                    <input class="login-input" type="text" id="login-username"
-                                        placeholder="Cédula o usuario" required />
-                                </div>
-                                <div class="login-field">
-                                    <label class="login-label" for="login-password">Contraseña</label>
-                                    <div class="auth-pw-wrap">
-                                        <input class="login-input" type="password" id="login-password"
-                                            placeholder="Ingrese su contraseña" required
-                                            style="padding-right:2.5rem;" />
-                                        <button type="button" class="auth-eye" id="eye-login" tabindex="-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                                <circle cx="12" cy="12" r="3" />
-                                            </svg>
-                                        </button>
+                                <form id="login-form" class="login-form" autocomplete="off">
+                                    <div class="login-field">
+                                        <label class="login-label" for="login-username">Usuario</label>
+                                        <input class="login-input" type="text" id="login-username"
+                                            placeholder="Cédula o usuario" required />
                                     </div>
+                                    <div class="login-field">
+                                        <label class="login-label" for="login-password">Contraseña</label>
+                                        <div class="auth-pw-wrap">
+                                            <input class="login-input" type="password" id="login-password"
+                                                placeholder="Ingrese su contraseña" required
+                                                style="padding-right:2.5rem;" />
+                                            <button type="button" class="auth-eye" id="eye-login" tabindex="-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="login-submit-btn" id="btn-login-submit">INICIAR SESIÓN</button>
+                                </form>
+
+                                <div class="login-recover" style="margin-top: 1rem; text-align: center;">
+                                    <a href="#" id="recover-link"
+                                        style="color: var(--themePrimary); text-decoration: none; font-size: 0.9rem; font-weight: 500;">
+                                        ¿Olvidó su contraseña? Recuperar acceso
+                                    </a>
                                 </div>
 
-                                <button type="submit" class="login-submit-btn" id="btn-login-submit">INICIAR SESIÓN</button>
-                            </form>
-
-                            <div class="login-recover" style="margin-top: 1rem; text-align: center;">
-                                <a href="#" id="recover-link"
-                                    style="color: var(--themePrimary); text-decoration: none; font-size: 0.9rem; font-weight: 500;">
-                                    ¿Olvidó su contraseña? Recuperar acceso
-                                </a>
-                            </div>
-
-                            <div class="login-recover" style="margin-top: 0.5rem; text-align: center;">
-                                <a href="#" id="register-link"
-                                    style="color: var(--themePrimary); text-decoration: none; font-size: 0.9rem; font-weight: 500;">
-                                    ¿No tienes cuenta? Regístrate aquí
-                                </a>
+                                <div class="login-recover" style="margin-top: 0.5rem; text-align: center;">
+                                    <a href="#" id="register-link"
+                                        style="color: var(--themePrimary); text-decoration: none; font-size: 0.9rem; font-weight: 500;">
+                                        ¿No tienes cuenta? Regístrate aquí
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- VISTA: REGISTRO -->
-            <div id="view-register" class="view">
-                <div id="register-root"></div>
-            </div>
-
-            <!-- VISTA: INICIO / DASHBOARD -->
-            <div id="view-home" class="view">
-                <div class="section-title">Mi Próxima Cita</div>
-                <div id="next-appointment-slot"></div>
-
-                <div class="section-title">
-                    Mis Citas Próximas
-                    <a href="#" class="see-all" data-view-target="my-appointments">Ver todas</a>
+                <!-- VISTA: REGISTRO -->
+                <div id="view-register" class="view">
+                    <div id="register-root"></div>
                 </div>
-                <div class="agenda-list" id="home-agenda-list"></div>
-            </div>
 
-            <!-- VISTA: ÁREAS MÉDICAS -->
-            <div id="view-areas" class="view">
-                <div class="section-title">Áreas Médicas</div>
-                <div id="areas-list-container"></div>
-            </div>
+                <!-- VISTA: INICIO / DASHBOARD -->
+                <div id="view-home" class="view">
+                    <div class="section-title">Mi Próxima Cita</div>
+                    <div id="next-appointment-slot"></div>
 
-            <!-- VISTA: MI HISTORIA CLÍNICA -->
-            <div id="view-clinical" class="view">
-                <div class="section-title">Mi Historia Clínica</div>
-                <div id="clinical-root"></div>
-            </div>
-
-            <!-- VISTA: MIS CITAS -->
-            <div id="view-my-appointments" class="view">
-                <div class="section-title">Mis Citas Médicas</div>
-                <div id="my-appointments-tabs" class="appt-tabs">
-                    <button class="appt-tab active" data-filter="all">Todas</button>
-                    <button class="appt-tab" data-filter="scheduled">Pendientes</button>
-                    <button class="appt-tab" data-filter="completed">Finalizadas</button>
+                    <div class="section-title">
+                        Mis Citas Próximas
+                        <a href="#" class="see-all" data-view-target="my-appointments">Ver todas</a>
+                    </div>
+                    <div class="agenda-list" id="home-agenda-list"></div>
                 </div>
-                <div class="agenda-list" id="my-appointments-list"></div>
-            </div>
 
-            <!-- VISTA: NUEVA CITA -->
-            <div id="view-new-appointment" class="view">
-                <div class="section-title">
-                    <button class="btn-back" id="back-from-new-appt">
-                        <i class="fa-solid fa-arrow-left"></i>
-                    </button>
-                    Agendar Nueva Cita
+                <!-- VISTA: ÁREAS MÉDICAS -->
+                <div id="view-areas" class="view">
+                    <div class="section-title">Áreas Médicas</div>
+                    <div id="areas-list-container"></div>
                 </div>
-                <div class="form-container" id="new-appointment-form-container"></div>
-            </div>
 
-            <!-- VISTA: NOTIFICACIONES / MENSAJES -->
-            <div id="view-messages" class="view">
-                <div class="section-title">Notificaciones</div>
-                <div id="messages-list"></div>
-            </div>
-
-            <!-- VISTA: MI PERFIL -->
-            <div id="view-profile" class="view">
-                <div class="section-title">Mi Perfil</div>
-                <div id="profile-root"></div>
-            </div>
-
-        </div>
-
-        <!-- Sidebar Menu (Paciente) -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo-block">
-                    <img src="img/logotipo_blanco.png" alt="HUMNT" onerror="this.style.display='none';">
-                    <span class="logo-text">HUMNT</span>
+                <!-- VISTA: MI HISTORIA CLÍNICA -->
+                <div id="view-clinical" class="view">
+                    <div class="section-title">Mi Historia Clínica</div>
+                    <div id="clinical-root"></div>
                 </div>
-                <div class="sidebar-user-block">
-                    <div class="profile-img large" id="sidebar-patient-img"></div>
-                    <div class="sidebar-user-info">
-                        <h3 id="sidebar-patient-name">Paciente</h3>
-                        <p id="sidebar-patient-dni">Cédula: ---</p>
+
+                <!-- VISTA: MIS CITAS -->
+                <div id="view-my-appointments" class="view">
+                    <div class="section-title">Mis Citas Médicas</div>
+                    <div id="my-appointments-tabs" class="appt-tabs">
+                        <button class="appt-tab active" data-filter="all">Todas</button>
+                        <button class="appt-tab" data-filter="scheduled">Pendientes</button>
+                        <button class="appt-tab" data-filter="completed">Finalizadas</button>
+                    </div>
+                    <div class="agenda-list" id="my-appointments-list"></div>
+                </div>
+
+                <!-- VISTA: NUEVA CITA -->
+                <div id="view-new-appointment" class="view">
+                    <div class="section-title">
+                        <button class="btn-back" id="back-from-new-appt">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        Agendar Nueva Cita
+                    </div>
+                    <div class="form-container" id="new-appointment-form-container"></div>
+                </div>
+
+                <!-- VISTA: NOTIFICACIONES / MENSAJES -->
+                <div id="view-messages" class="view">
+                    <div class="section-title">Notificaciones</div>
+                    <div id="messages-list"></div>
+                </div>
+
+                <!-- VISTA: MI PERFIL -->
+                <div id="view-profile" class="view">
+                    <div class="section-title">Mi Perfil</div>
+                    <div id="profile-root"></div>
+                </div>
+
+            </div>
+
+            <!-- Sidebar Menu (Paciente) -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-logo-block">
+                        <img src="img/logotipo_blanco.png" alt="HUMNT" onerror="this.style.display='none';">
+                        <span class="logo-text">HUMNT</span>
+                    </div>
+                    <div class="sidebar-user-block">
+                        <div class="profile-img large" id="sidebar-patient-img"></div>
+                        <div class="sidebar-user-info">
+                            <h3 id="sidebar-patient-name">Paciente</h3>
+                            <p id="sidebar-patient-dni">Cédula: ---</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <nav class="sidebar-nav">
-                <span class="sidebar-section-label">Menú Principal</span>
-                <a href="#" class="sidebar-item" data-view="home">
-                    <i class="fa-solid fa-house"></i> Inicio
-                </a>
-                <a href="#" class="sidebar-item" data-view="new-appointment">
-                    <i class="fa-solid fa-calendar-plus"></i> Agendar Cita
-                </a>
-                <a href="#" class="sidebar-item" data-view="my-appointments">
-                    <i class="fa-solid fa-calendar-check"></i> Mis Citas
-                </a>
-                <a href="#" class="sidebar-item" data-view="areas">
-                    <i class="fa-solid fa-building"></i> Áreas Médicas
-                </a>
-                <a href="#" class="sidebar-item" data-view="clinical">
-                    <i class="fa-solid fa-file-medical"></i> Mi Historia Clínica
-                </a>
+                <nav class="sidebar-nav">
+                    <span class="sidebar-section-label">Menú Principal</span>
+                    <a href="#" class="sidebar-item" data-view="home">
+                        <i class="fa-solid fa-house"></i> Inicio
+                    </a>
+                    <a href="#" class="sidebar-item" data-view="new-appointment">
+                        <i class="fa-solid fa-calendar-plus"></i> Agendar Cita
+                    </a>
+                    <a href="#" class="sidebar-item" data-view="my-appointments">
+                        <i class="fa-solid fa-calendar-check"></i> Mis Citas
+                    </a>
+                    <a href="#" class="sidebar-item" data-view="areas">
+                        <i class="fa-solid fa-building"></i> Áreas Médicas
+                    </a>
+                    <a href="#" class="sidebar-item" data-view="clinical">
+                        <i class="fa-solid fa-file-medical"></i> Mi Historia Clínica
+                    </a>
 
-                <hr class="sidebar-divider">
-                <span class="sidebar-section-label">Mi Cuenta</span>
-                <a href="#" class="sidebar-item" data-view="profile">
-                    <i class="fa-solid fa-user-gear"></i> Mi Perfil
-                </a>
-                <a href="#" class="sidebar-item" data-view="messages">
-                    <i class="fa-solid fa-bell"></i> Notificaciones
-                </a>
+                    <hr class="sidebar-divider">
+                    <span class="sidebar-section-label">Mi Cuenta</span>
+                    <a href="#" class="sidebar-item" data-view="profile">
+                        <i class="fa-solid fa-user-gear"></i> Mi Perfil
+                    </a>
+                    <a href="#" class="sidebar-item" data-view="messages">
+                        <i class="fa-solid fa-bell"></i> Notificaciones
+                    </a>
 
-                <hr class="sidebar-divider">
-                <span class="sidebar-section-label">Ayuda</span>
-                <a href="#" class="sidebar-item">
-                    <i class="fa-solid fa-circle-info"></i> Ayuda y Soporte
+                    <hr class="sidebar-divider">
+                    <span class="sidebar-section-label">Ayuda</span>
+                    <a href="#" class="sidebar-item">
+                        <i class="fa-solid fa-circle-info"></i> Ayuda y Soporte
+                    </a>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <a href="#" class="sidebar-item logout" id="logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Bottom Navigation (Paciente) -->
+            <nav class="bottom-nav">
+                <a href="javascript:void(0)" class="nav-item active" data-view="home">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Inicio</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-view="my-appointments">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>Citas</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-view="new-appointment">
+                    <i class="fa-solid fa-circle-plus" style="font-size: 1.8rem; color: var(--themePrimary);"></i>
+                    <span>Agendar</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-view="areas">
+                    <i class="fa-solid fa-building"></i>
+                    <span>Áreas</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-view="profile">
+                    <i class="fa-solid fa-user"></i>
+                    <span>Perfil</span>
                 </a>
             </nav>
 
-            <div class="sidebar-footer">
-                <a href="#" class="sidebar-item logout" id="logout-btn">
-                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
-                </a>
-            </div>
-        </aside>
-
-        <!-- Bottom Navigation (Paciente) -->
-        <nav class="bottom-nav">
-            <a href="javascript:void(0)" class="nav-item active" data-view="home">
-                <i class="fa-solid fa-house"></i>
-                <span>Inicio</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" data-view="my-appointments">
-                <i class="fa-solid fa-calendar-check"></i>
-                <span>Citas</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" data-view="new-appointment">
-                <i class="fa-solid fa-circle-plus" style="font-size: 1.8rem; color: var(--themePrimary);"></i>
-                <span>Agendar</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" data-view="areas">
-                <i class="fa-solid fa-building"></i>
-                <span>Áreas</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" data-view="profile">
-                <i class="fa-solid fa-user"></i>
-                <span>Perfil</span>
-            </a>
-        </nav>
-
-        <!-- Overlay para sidebar -->
-        <div class="overlay" id="overlay"></div>
+            <!-- Overlay para sidebar -->
+            <div class="overlay" id="overlay"></div>
+        </div>
     </div>
 
     <!-- Recovery Modal Overlay (FUERA de las vistas para que funcione globalmente) -->
