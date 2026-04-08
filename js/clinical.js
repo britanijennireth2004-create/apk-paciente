@@ -2,6 +2,7 @@
  * clinical.js — Historia Clínica Electrónica (APK / Patient Mobile)
  * Vista para pacientes: muestra su perfil como tarjeta y al hacer clic
  * muestra el historial clínico en un modal emergente (bottom sheet)
+ * CORREGIDO: Manejo correcto de fechas de nacimiento
  */
 
 // ─── Tipos de registro ────────────────────────────────────────────────────────
@@ -19,12 +20,46 @@ const ENTRY_TYPES = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Calcula la edad correctamente sin problemas de zona horaria (CORREGIDO)
+ */
 function calcAge(bd) {
     if (!bd) return '—';
-    const b = new Date(bd), t = new Date();
-    let a = t.getFullYear() - b.getFullYear();
-    if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
+    // Usar UTC para evitar problemas de zona horaria
+    const birthParts = bd.split('-');
+    const birthUTC = new Date(Date.UTC(
+        parseInt(birthParts[0]),
+        parseInt(birthParts[1]) - 1,
+        parseInt(birthParts[2])
+    ));
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+    ));
+    let a = todayUTC.getUTCFullYear() - birthUTC.getUTCFullYear();
+    const m = todayUTC.getUTCMonth() - birthUTC.getUTCMonth();
+    if (m < 0 || (m === 0 && todayUTC.getUTCDate() < birthUTC.getUTCDate())) {
+        a--;
+    }
     return a;
+}
+
+/**
+ * Formatea una fecha de nacimiento para mostrar (CORREGIDO)
+ */
+function formatBirthDateDisplay(bd) {
+    if (!bd) return '—';
+    const months = [
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    const parts = bd.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    const day = parseInt(parts[2]);
+    return `${day} de ${months[month]} de ${year}`;
 }
 
 function fmtDate(ts) {
@@ -83,18 +118,17 @@ export function mountClinical(root, { store, user, role }) {
             const hasVitals = v.bloodPressure || v.heartRate || v.temperature || v.spo2 || v.weight || v.height;
 
             const presHtml = Array.isArray(r.prescriptions) && r.prescriptions.length
-                ? r.prescriptions.map((px, i) => `<div style="margin-bottom:3px;">${i + 1}. <strong>${px.medication}</strong> — ${px.dosage} — ${px.frequency} — ${px.duration}</div>`).join('')
-                : (r.prescriptions ? `<div>${r.prescriptions}</div>` : `<div style="font-style:italic;color:var(--neutralSecondary);">Sin prescripciones</div>`);
+                ? r.prescriptions.map((px, i) => `<div style="margin-bottom:3px;">${i + 1}. <strong>${escapeHtml(px.medication)}</strong> — ${escapeHtml(px.dosage)} — ${escapeHtml(px.frequency)} — ${escapeHtml(px.duration)}</div>`).join('')
+                : (r.prescriptions ? `<div>${escapeHtml(r.prescriptions)}</div>` : `<div style="font-style:italic;color:var(--neutralSecondary);">Sin prescripciones</div>`);
 
             return `
             <div style="background:#fff;border-radius:12px;border:1px solid var(--neutralLight);
                         border-left:4px solid ${cfg.color};margin-bottom:12px;overflow:hidden;">
-                <!-- Cabecera del registro -->
                 <div style="padding:10px 14px;background:${cfg.bg};display:flex;justify-content:space-between;align-items:center;">
                     <div>
                         <span style="font-size:0.72rem;font-weight:800;color:${cfg.color};text-transform:uppercase;letter-spacing:.05em;">${cfg.label}</span>
                         <div style="font-size:0.68rem;color:var(--neutralSecondary);margin-top:2px;">
-                            ${fmtDateTime(r.date)} · ${r.creatorName ? (r.creatorRole === 'doctor' ? 'Dr. ' : r.creatorRole === 'nurse' ? 'Lic. ' : '') + r.creatorName : 'Dr. ' + (dr?.name || '—')}
+                            ${fmtDateTime(r.date)} · ${r.creatorName ? (r.creatorRole === 'doctor' ? 'Dr. ' : r.creatorRole === 'nurse' ? 'Lic. ' : '') + escapeHtml(r.creatorName) : 'Dr. ' + escapeHtml(dr?.name || '—')}
                         </div>
                     </div>
                     <span style="font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:8px;
@@ -106,39 +140,36 @@ export function mountClinical(root, { store, user, role }) {
 
                 <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
 
-                    <!-- Signos vitales -->
                     ${hasVitals ? `
                     <div style="background:var(--neutralLighterAlt,#f8f8f8);border-radius:8px;padding:10px;border-left:3px solid #3b82f6;">
                         <div style="font-size:0.65rem;font-weight:800;color:#2563eb;text-transform:uppercase;margin-bottom:7px;">Signos Vitales</div>
                         <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                            ${v.bloodPressure ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">PA</div><div style="font-size:0.82rem;font-weight:600;">${v.bloodPressure}</div></div>` : ''}
-                            ${v.heartRate ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">FC</div><div style="font-size:0.82rem;font-weight:600;">${v.heartRate} lpm</div></div>` : ''}
-                            ${v.temperature ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">Temp</div><div style="font-size:0.82rem;font-weight:600;">${v.temperature} °C</div></div>` : ''}
-                            ${v.spo2 ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">SpO₂</div><div style="font-size:0.82rem;font-weight:600;">${v.spo2} %</div></div>` : ''}
-                            ${v.weight ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">Peso</div><div style="font-size:0.82rem;font-weight:600;">${v.weight} kg</div></div>` : ''}
-                            ${v.height ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">Talla</div><div style="font-size:0.82rem;font-weight:600;">${v.height} cm</div></div>` : ''}
+                            ${v.bloodPressure ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">PA</div><div style="font-size:0.82rem;font-weight:600;">${escapeHtml(v.bloodPressure)}</div></div>` : ''}
+                            ${v.heartRate ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">FC</div><div style="font-size:0.82rem;font-weight:600;">${escapeHtml(v.heartRate)} lpm</div></div>` : ''}
+                            ${v.temperature ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">Temp</div><div style="font-size:0.82rem;font-weight:600;">${escapeHtml(v.temperature)} °C</div></div>` : ''}
+                            ${v.spo2 ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">SpO₂</div><div style="font-size:0.82rem;font-weight:600;">${escapeHtml(v.spo2)} %</div></div>` : ''}
+                            ${v.weight ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">Peso</div><div style="font-size:0.82rem;font-weight:600;">${escapeHtml(v.weight)} kg</div></div>` : ''}
+                            ${v.height ? `<div><div style="font-size:0.6rem;font-weight:700;color:var(--neutralSecondary);">Talla</div><div style="font-size:0.82rem;font-weight:600;">${escapeHtml(v.height)} cm</div></div>` : ''}
                         </div>
                     </div>` : ''}
 
-                    <!-- Motivo y diagnóstico -->
                     <div style="background:var(--neutralLighterAlt,#f8f8f8);border-radius:8px;padding:10px;border-left:3px solid #ea580c;">
                         ${r.reason ? `
                         <div style="margin-bottom:8px;">
                             <div style="font-size:0.63rem;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:3px;">Motivo de Consulta</div>
-                            <div style="font-size:0.82rem;line-height:1.4;">${r.reason}</div>
+                            <div style="font-size:0.82rem;line-height:1.4;">${escapeHtml(r.reason)}</div>
                         </div>` : ''}
                         <div>
                             <div style="font-size:0.63rem;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:3px;">Diagnóstico</div>
-                            <div style="font-size:0.85rem;font-weight:600;line-height:1.4;">${r.diagnosis || 'Pendiente'}</div>
+                            <div style="font-size:0.85rem;font-weight:600;line-height:1.4;">${escapeHtml(r.diagnosis || 'Pendiente')}</div>
                         </div>
                     </div>
 
-                    <!-- Plan y recetas -->
                     <div style="background:var(--neutralLighterAlt,#f8f8f8);border-radius:8px;padding:10px;border-left:3px solid #16a34a;">
                         ${r.treatment ? `
                         <div style="margin-bottom:8px;">
                             <div style="font-size:0.63rem;font-weight:800;color:#15803d;text-transform:uppercase;margin-bottom:3px;">Plan de Tratamiento</div>
-                            <div style="font-size:0.82rem;line-height:1.4;">${r.treatment}</div>
+                            <div style="font-size:0.82rem;line-height:1.4;">${escapeHtml(r.treatment)}</div>
                         </div>` : ''}
                         <div style="margin-bottom:${r.followUp || r.notes ? '8px' : '0'};">
                             <div style="font-size:0.63rem;font-weight:800;color:#15803d;text-transform:uppercase;margin-bottom:3px;">Recetas Médicas</div>
@@ -152,12 +183,22 @@ export function mountClinical(root, { store, user, role }) {
                         ${r.notes ? `
                         <div style="padding-top:8px;border-top:1px dashed var(--neutralLight);">
                             <div style="font-size:0.63rem;font-weight:700;color:var(--neutralSecondary);text-transform:uppercase;margin-bottom:3px;">Notas</div>
-                            <div style="font-size:0.8rem;">${r.notes}</div>
+                            <div style="font-size:0.8rem;">${escapeHtml(r.notes)}</div>
                         </div>` : ''}
                     </div>
                 </div>
             </div>`;
         }).join('');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
     }
 
     // Abrir modal con historial clínico
@@ -169,21 +210,21 @@ export function mountClinical(root, { store, user, role }) {
         
         const age = calcAge(patient.birthDate);
         const initials = (patient.name || '?').charAt(0).toUpperCase();
+        const birthDateFormatted = formatBirthDateDisplay(patient.birthDate);
         
         modal.innerHTML = `
             <div style="background:#f8f9fa;border-radius:24px 24px 0 0;max-height:85vh;width:100%;display:flex;flex-direction:column;animation:slideUp 0.3s cubic-bezier(0.4,0,0.2,1);">
-                <!-- Cabecera con info del paciente -->
                 <div style="background:var(--themePrimary);padding:20px 20px 16px;border-radius:24px 24px 0 0;">
                     <div style="width:40px;height:4px;background:rgba(255,255,255,0.3);border-radius:4px;margin:0 auto 12px;"></div>
                     <div style="display:flex;align-items:center;gap:14px;">
                         <div style="width:56px;height:56px;border-radius:20px;background:rgba(255,255,255,0.2);
                                     display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:#fff;">
-                            ${initials}
+                            ${escapeHtml(initials)}
                         </div>
                         <div style="flex:1;">
-                            <div style="color:#fff;font-size:1.1rem;font-weight:800;">${patient.name}</div>
+                            <div style="color:#fff;font-size:1.1rem;font-weight:800;">${escapeHtml(patient.name)}</div>
                             <div style="color:rgba(255,255,255,0.8);font-size:0.75rem;margin-top:2px;">
-                                ${patient.docType || 'V'}-${patient.dni || '—'} · ${age} años
+                                ${patient.docType || 'V'}-${patient.dni || '—'} · ${birthDateFormatted} (${age} años)
                                 ${patient.bloodType ? ` · Sangre: ${patient.bloodType}` : ''}
                             </div>
                         </div>
@@ -192,19 +233,16 @@ export function mountClinical(root, { store, user, role }) {
                         </button>
                     </div>
                     
-                    <!-- Alergias si existen -->
                     ${(patient.allergies || []).length ? `
                     <div style="background:rgba(255,100,50,0.2);border-radius:10px;padding:8px 12px;margin-top:12px;font-size:0.72rem;color:#fff;font-weight:600;">
-                        <i class="fa-solid fa-triangle-exclamation"></i> Alergias: ${(patient.allergies || []).join(', ')}
+                        <i class="fa-solid fa-triangle-exclamation"></i> Alergias: ${(patient.allergies || []).map(a => escapeHtml(a)).join(', ')}
                     </div>` : ''}
                 </div>
                 
-                <!-- Timeline de registros clínicos -->
                 <div style="flex:1;overflow-y:auto;padding:16px 20px;">
                     ${renderTimeline(records)}
                 </div>
                 
-                <!-- Footer -->
                 <div style="padding:12px 20px 24px;background:#fff;border-top:1px solid var(--neutralLight);">
                     <button id="close-footer-btn" style="width:100%;background:var(--neutralLight);border:none;border-radius:14px;padding:14px;font-weight:700;font-size:0.85rem;color:var(--neutralPrimary);cursor:pointer;">
                         <i class="fa-solid fa-chevron-down"></i> Cerrar
@@ -226,10 +264,11 @@ export function mountClinical(root, { store, user, role }) {
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     }
 
-    // Renderizar la tarjeta del paciente
+    // Renderizar la tarjeta del paciente (CORREGIDO)
     function renderPatientCard() {
         const age = calcAge(patient.birthDate);
         const initials = (patient.name || '?').charAt(0).toUpperCase();
+        const birthDateFormatted = formatBirthDateDisplay(patient.birthDate);
         
         root.innerHTML = `
             <style>
@@ -280,15 +319,15 @@ export function mountClinical(root, { store, user, role }) {
                 <div style="display: flex; align-items: center; gap: 16px;">
                     <div style="width: 56px; height: 56px; border-radius: 20px; background: var(--themePrimary);
                                 display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: #fff; flex-shrink: 0;">
-                        ${initials}
+                        ${escapeHtml(initials)}
                     </div>
                     <div style="flex: 1;">
-                        <div style="font-weight: 700; font-size: 1rem; color: #1e293b;">${patient.name}</div>
+                        <div style="font-weight: 700; font-size: 1rem; color: #1e293b;">${escapeHtml(patient.name)}</div>
                         <div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;">
-                            ${patient.docType || 'V'}-${patient.dni || '—'} · ${age} años
+                            ${patient.docType || 'V'}-${patient.dni || '—'} · ${birthDateFormatted} (${age} años)
                             ${patient.bloodType ? ` · Grupo ${patient.bloodType}` : ''}
                         </div>
-                        ${patient.phone ? `<div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;"><i class="fa-solid fa-phone"></i> ${patient.phone}</div>` : ''}
+                        ${patient.phone ? `<div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;"><i class="fa-solid fa-phone"></i> ${escapeHtml(patient.phone)}</div>` : ''}
                     </div>
                     <div style="text-align: right;">
                         <i class="fa-solid fa-chevron-right" style="color: var(--themePrimary); font-size: 1.2rem;"></i>
@@ -297,13 +336,12 @@ export function mountClinical(root, { store, user, role }) {
                 
                 ${(patient.allergies || []).length > 0 ? `
                 <div class="clinical-allergy-badge">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Alergias: ${(patient.allergies || []).join(', ')}
+                    <i class="fa-solid fa-triangle-exclamation"></i> Alergias: ${(patient.allergies || []).map(a => escapeHtml(a)).join(', ')}
                 </div>
                 ` : ''}
             </div>
         `;
         
-        // Agregar evento click a la tarjeta
         const card = document.getElementById('patient-clinical-card');
         if (card) {
             card.addEventListener('click', openClinicalHistoryModal);
@@ -312,6 +350,5 @@ export function mountClinical(root, { store, user, role }) {
 
     renderPatientCard();
     
-    // Retornar función de refresh por si se necesita actualizar
     return { refresh: renderPatientCard };
 }
